@@ -231,7 +231,7 @@ public class ClusterManager {
 					operations = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
 					if(operations.size() > 0) {
 						for (String znode : operations) {
-							zk.delete(znode, zk.exists(znode, false).getAversion());
+							zk.delete(znode, zk.exists(znode, false).getVersion());
 						}
 					}
 				} catch (KeeperException e) {
@@ -245,7 +245,7 @@ public class ClusterManager {
 					List<String> locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false));
 					if(locks.size() > 0) {
 						for (String znode : locks) {
-							zk.delete(znode, zk.exists(znode, false).getAversion());
+							zk.delete(znode, zk.exists(znode, false).getVersion());
 						}
 					}
 				} catch (KeeperException e) {
