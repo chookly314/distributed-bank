@@ -5,16 +5,19 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
+import es.upm.dit.cnvr.distributedBank.cluster.ClusterManager;
+
 public class BankCore {
 	
-	private static Logger logger = Logger.getLogger(ClusterManager.class);
+	private static Logger logger = Logger.getLogger(BankCore.class);
 	private ZooKeeper zk;
 	private boolean leader;
+	public boolean updating;
 	
 	public BankCore () {
 		this.leader = true;
+		this.updating = false;
 		
-		//We will create a Zookeeper session for test purposes. This session should be obtained from other classes
 		try {
 			if (zk == null) {
 				zk = new ZooKeeper(ZookeeperServersEnum.getRandomServer(),
@@ -42,6 +45,7 @@ public class BankCore {
 	public boolean isLeader() {
 		return this.leader;
 	}
+	
 	
 	// *** Watchers ***
 
