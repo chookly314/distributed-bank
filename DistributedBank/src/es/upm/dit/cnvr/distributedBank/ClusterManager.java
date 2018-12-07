@@ -1,6 +1,9 @@
 package es.upm.dit.cnvr.distributedBank;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,15 +79,14 @@ public class ClusterManager {
 				znodeID = Integer.valueOf(znodeIDString);
 
 				// Update the list with the current znodes and set a watcher
-				znodeList = new ArrayList<Integer>();
 				znodeList = getZnodeList();
 				if (znodeList == null) {
 					logger.error("Error getting current znode list while creating a ClusterManager.");
 					throw new NullPointerException(
 							"znodeList is null and that should not be possible if things work as expected.");
 				}
-				// If the this process makes the cluster have more servers than expected, kill
-				// it
+
+				// If this process makes the cluster have more servers than expected, kill it
 				if (znodeList.size() > ConfigurationParameters.CLUSTER_GOAL_SIZE) {
 					logger.error(String.format(
 							"The number of servers in the cluster is {} while the expected one is {}. Killing myself.",
@@ -100,14 +102,26 @@ public class ClusterManager {
 					if (znodeList.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
 						logger.info(String.format("The cluster has {} servers, as expected.", znodeList.size()));
 					} else {
-						// This case means that the number of servers is lower than expected and is one
+						// This case means that the number of servers is lower than expected and that we
+						// are in one
 						// of the following two options:
 						// -> First process created in the system
 						// -> Every other process has died and this is the first one living. In this
-						// case, proceed as in the previous option, because processes are created one by one.
+						// case, proceed as in the previous option, because processes are created one by
+						// one.
 						pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeList.size();
 						setUpNewServer();
 					}
+				} else {
+					// Get the current system state
+					byte[] databaseState = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false,
+							zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false));
+					DBConn.createDatabase(databaseState);
+
+					// Remove /state znode
+					zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, -1);
+
+					logger.info("This process was properly initialized and is also synced now.");
 				}
 
 			} catch (KeeperException e) {
@@ -166,7 +180,8 @@ public class ClusterManager {
 			leader = Integer.valueOf(leaderString);
 
 			// Set a watcher in /members
-			//zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
+			// zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT,
+			// watcherMember, s);
 		} catch (Exception e) {
 			logger.error(String.format("Error electing leader: {}", e.toString()));
 		}
@@ -196,8 +211,9 @@ public class ClusterManager {
 		return leaderStr;
 	}
 
-	private synchronized void handleZnodesUpdate() {
-		// Get the most recent znodeList (by asking Zookeeper) and set a watcher to avoid the possibility of missing information
+	private synchronized void handleZnodesUpdate() throws KeeperException, InterruptedException {
+		// Get the most recent znodeList (by asking Zookeeper) and set a watcher to
+		// avoid the possibility of missing information
 		ArrayList<Integer> updatedZnodeList = getZnodeList();
 		// Check if the event was a znode creation
 		if (updatedZnodeList == null) {
@@ -206,30 +222,32 @@ public class ClusterManager {
 					"znodeList is null and that should not be possible if things work as expected.");
 		}
 		boolean creation = (updatedZnodeList.size() > znodeList.size()) ? true : false;
-		
+
 		// Update the znodeList attribute
 		znodeList = new ArrayList<Integer>(updatedZnodeList);
-		
-		// Set the number of pending processes to be started to the difference between the goal and the current cluster size
+
+		// Set the number of pending processes to be started to the difference between
+		// the goal and the current cluster size
 		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeList.size();
-		
-		// Check if this process is the leader
-		boolean isLeader = (znodeID == leader) ? true : false;
 
 		// This variable will help us to determine when is the update process completed
 		// by this process
 		boolean updateHandlePending = true;
 		while (updateHandlePending) {
+			// Check if this process is the leader
+			boolean isLeader = (znodeID == leader) ? true : false;
+
 			// Case: znode deleted and this process is the leader -> undo the current
 			// operation (if exists), dump the state of the system for the new process and
 			// create it
 			if (!creation && isLeader) {
-				pendingProcessesToStart++;
+				updateHandlePending = false;
 				// Get /operations znode and remove it if exists
 				List<String> operations;
 				try {
-					operations = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
-					if(operations.size() > 0) {
+					operations = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false,
+							zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
+					if (operations.size() > 0) {
 						for (String znode : operations) {
 							zk.delete(znode, zk.exists(znode, false).getVersion());
 						}
@@ -239,11 +257,11 @@ public class ClusterManager {
 				} catch (InterruptedException e) {
 					logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
 				}
-				
-				// Get /locks znodes and remove them
+
+				// Get /locks znodes and delete them
 				try {
-					List<String> locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false));
-					if(locks.size() > 0) {
+					List<String> locks = getLocks();
+					if (locks.size() > 0) {
 						for (String znode : locks) {
 							zk.delete(znode, zk.exists(znode, false).getVersion());
 						}
@@ -254,18 +272,24 @@ public class ClusterManager {
 					logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
 				}
 
-				setUpNewServer();
-				updateHandlePending = false;
+				// Check if the system is creating a new process:
+				// - yes: do nothing, the system will create a new one if needed once it
+				// finishes the current cycle
+				// - no: trigger a process creation
+				logger.debug("Checking if the creation of a new process has already been triggered.");
+				if (zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false) == null) {
+					setUpNewServer();
+				}
 
-				// Case: znode deleted and this process is not the leader - check if the
-				// leader is still up:
-				// - no: get the new leader and start again
-				// - yes: do nothing
+			// Case: znode deleted and this process is not the leader - check if the
+			// leader is still up:
+			// - no: get the new leader and start again
+			// - yes: do nothing
 			} else if (!creation && !isLeader) {
 				pendingProcessesToStart++;
 				if (!(updatedZnodeList.contains(leader))) {
-					leaderElection();
 					updateHandlePending = true;
+					leaderElection();
 				} else {
 					updateHandlePending = false;
 				}
@@ -273,21 +297,39 @@ public class ClusterManager {
 		}
 	}
 
-	//TODO
 	private synchronized void setUpNewServer() {
-		// 1. Create the znode with the dump of the database - taken from
-		// http://www.java2s.com/Code/Java/File-Input-Output/Convertobjecttobytearrayandconvertbytearraytoobject.htm
-		DBConn db = new DBConn();
-		HashMap<Integer, BankClient> dbDump = db.getDatabase();
-		// Convert Map to byte array
-		ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-		ObjectOutputStream out = new ObjectOutputStream(byteOut);
-		out.writeObject(dbDump);
-		out.flush();
-		byte[] bytes = byteOut.toByteArray();
-		zk.create(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT, bytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+		// 1. Get a dump of the database
+		byte[] dbDump = null;
+		try {
+			dbDump = DBConn.getDatabase();
+		} catch (IOException e) {
+			logger.error(String.format("Could not dump the database. Error: {}", e));
+		}
 
-		// 2. Create the new process
+		// 2. Copy it to a Zookeeper znode in /state
+		try {
+			if (dbDump != null) {
+				zk.create(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, dbDump, Ids.OPEN_ACL_UNSAFE,
+						CreateMode.PERSISTENT);
+
+				// Add the content
+				zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, dbDump, -1);
+
+				// Set a watcher in /state
+				zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT, watcherState);
+			} else {
+				logger.warn("Couldn't make a dump of the database. New process won't be created.");
+				return;
+			}
+		} catch (KeeperException e) {
+			logger.error(String.format("Could not create a znode in /state. Error: {}", e));
+			return;
+		} catch (InterruptedException e) {
+			logger.error(String.format("Could not create a znode in /state. Error: {}", e));
+			return;
+		}
+
+		// 3. Create the new process
 		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
 		StringBuffer output = new StringBuffer();
 		Process p;
@@ -295,24 +337,33 @@ public class ClusterManager {
 			p = Runtime.getRuntime().exec(command);
 			p.waitFor();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
 			String line = "";
 			while ((line = reader.readLine()) != null) {
 				output.append(line + "\n");
 			}
-
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(String.format("Could not create a new process. Error: {}", e));
 		}
-
-		return output.toString();
-
+		logger.info("Created a znode in /state with the dump of the database. New process launched.");
 	}
 
-	// TODO: get the current locks -- decide if this class handles the incomplete
-	// update or if UpdateManager does it
-	private synchronized List<Integer> getLocks() {
+	private synchronized List<String> getLocks() throws KeeperException, InterruptedException {
+		return zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false,
+				zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false));
+	}
 
+	private synchronized void handleStateUpdate() {
+		// This method should be called only by the leader, but check it just in case
+		if (leader != znodeID) {
+			return;
+		}
+
+		// Decrement the number of pending processes
+		pendingProcessesToStart--;
+
+		if (pendingProcessesToStart > 0) {
+			setUpNewServer();
+		}
 	}
 
 	// *** Watchers ***
@@ -327,7 +378,20 @@ public class ClusterManager {
 	// Notified when the number of children in the members branch is updated
 	private Watcher watcherMember = new Watcher() {
 		public void process(WatchedEvent event) {
-			handleZnodesUpdate();
+			try {
+				handleZnodesUpdate();
+			} catch (KeeperException e) {
+				logger.error(String.format("An exception was triggered while handling znodesUpdate. Error: ", e));
+			} catch (InterruptedException e) {
+				logger.error(String.format("An exception was triggered while handling znodesUpdate. Error: ", e));
+			}
+		}
+	};
+
+	// Notified when the /state directory is modified
+	private Watcher watcherState = new Watcher() {
+		public void process(WatchedEvent event) {
+			handleStateUpdate();
 		}
 	};
 

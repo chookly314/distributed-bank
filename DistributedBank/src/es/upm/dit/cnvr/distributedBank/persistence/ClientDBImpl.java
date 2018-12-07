@@ -8,7 +8,7 @@ import es.upm.dit.cnvr.distributedBank.ServiceStatusEnum;
 
 public class ClientDBImpl implements ClientDB {
 
-	protected static HashMap<Integer, BankClient> database;
+	protected static HashMap<Integer, BankClient> database = new HashMap<Integer, BankClient>();
 
 	public ClientDBImpl () {
 	}
