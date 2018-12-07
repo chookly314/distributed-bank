@@ -25,7 +25,7 @@ public class ClusterManager {
 
 	private static Logger logger = Logger.getLogger(ClusterManager.class);
 
-	private List<Integer> znodeList;
+	private ArrayList<Integer> znodeList;
 	// Process znode id
 	private int znodeID;
 	// Leader sequential znode number in the "members" tree
@@ -35,14 +35,7 @@ public class ClusterManager {
 	// but have not been confirmed yet.
 	private int pendingProcessesToStart = 0;
 
-	public ClusterManager() {
-		// TODO:
-		// - if it is the first process - continue as normal
-		// - if not - check it there is a node in /state
-		// --- yes: get the state from there
-		// --- no: that must be because the cluster is starting
-		
-		
+	public ClusterManager() throws Exception {
 		// Create a Zookeeper session
 		try {
 			if (zk == null) {
@@ -82,7 +75,7 @@ public class ClusterManager {
 				logger.debug(String.format("Created zNode member id: {}", znodeIDString));
 				znodeID = Integer.valueOf(znodeIDString);
 
-				// Update the list with the current znodes
+				// Update the list with the current znodes and set a watcher
 				znodeList = new ArrayList<Integer>();
 				znodeList = getZnodeList();
 				if (znodeList == null) {
@@ -90,8 +83,33 @@ public class ClusterManager {
 					throw new NullPointerException(
 							"znodeList is null and that should not be possible if things work as expected.");
 				}
+				// If the this process makes the cluster have more servers than expected, kill
+				// it
+				if (znodeList.size() > ConfigurationParameters.CLUSTER_GOAL_SIZE) {
+					logger.error(String.format(
+							"The number of servers in the cluster is {} while the expected one is {}. Killing myself.",
+							znodeList.size(), ConfigurationParameters.CLUSTER_GOAL_SIZE));
+					throw new Exception();
+				}
+
 				// Get current leader
 				leaderElection();
+
+				// If I am the leader, check the servers number
+				if (znodeID == leader) {
+					if (znodeList.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
+						logger.info(String.format("The cluster has {} servers, as expected.", znodeList.size()));
+					} else {
+						// This case means that the number of servers is lower than expected and is one
+						// of the following two options:
+						// -> First process created in the system
+						// -> Every other process has died and this is the first one living. In this
+						// case, proceed as in the previous option, because processes are created one by one.
+						pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeList.size();
+						setUpNewServer();
+					}
+				}
+
 			} catch (KeeperException e) {
 				logger.error(String.format("Exception while adding the process to {}: {}",
 						ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, e.toString()));
@@ -101,11 +119,9 @@ public class ClusterManager {
 						ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, e.toString()));
 			}
 		}
-
-		// 
 	}
 
-	private synchronized List<Integer> getZnodeList() {
+	private synchronized ArrayList<Integer> getZnodeList() {
 		Stat s = null;
 		try {
 			s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
@@ -116,7 +132,7 @@ public class ClusterManager {
 		if (s != null) {
 			List<String> znodeListString = null;
 			try {
-				znodeListString = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false, s);
+				znodeListString = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
 			} catch (KeeperException e) {
 				logger.error(String.format("Error getting members znodes tree: {}", e.toString()));
 			} catch (InterruptedException e) {
@@ -124,7 +140,7 @@ public class ClusterManager {
 			}
 
 			// Parse and convert the list to int
-			List<Integer> newZnodeList = new ArrayList<Integer>();
+			ArrayList<Integer> newZnodeList = new ArrayList<Integer>();
 			for (String znode : znodeListString) {
 				znode = znode.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
 						+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
@@ -150,7 +166,7 @@ public class ClusterManager {
 			leader = Integer.valueOf(leaderString);
 
 			// Set a watcher in /members
-			zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
+			//zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
 		} catch (Exception e) {
 			logger.error(String.format("Error electing leader: {}", e.toString()));
 		}
@@ -181,44 +197,72 @@ public class ClusterManager {
 	}
 
 	private synchronized void handleZnodesUpdate() {
-		// Check if this process is the leader
-		boolean isLeader = (znodeID == leader) ? true : false;
-		// Check whether the event was a creation
-		List<Integer> updatedZnodeList = getZnodeList();
+		// Get the most recent znodeList (by asking Zookeeper) and set a watcher to avoid the possibility of missing information
+		ArrayList<Integer> updatedZnodeList = getZnodeList();
+		// Check if the event was a znode creation
 		if (updatedZnodeList == null) {
 			logger.error("Error getting current znode list while handling an update.");
 			throw new NullPointerException(
 					"znodeList is null and that should not be possible if things work as expected.");
 		}
 		boolean creation = (updatedZnodeList.size() > znodeList.size()) ? true : false;
+		
+		// Update the znodeList attribute
+		znodeList = new ArrayList<Integer>(updatedZnodeList);
+		
+		// Set the number of pending processes to be started to the difference between the goal and the current cluster size
+		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeList.size();
+		
+		// Check if this process is the leader
+		boolean isLeader = (znodeID == leader) ? true : false;
 
 		// This variable will help us to determine when is the update process completed
 		// by this process
 		boolean updateHandlePending = true;
 		while (updateHandlePending) {
 			// Case: znode deleted and this process is the leader -> undo the current
-			// operation (if exists), dump the state of the system for the new process and create it
+			// operation (if exists), dump the state of the system for the new process and
+			// create it
 			if (!creation && isLeader) {
 				pendingProcessesToStart++;
 				// Get /operations znode and remove it if exists
-				
+				List<String> operations;
+				try {
+					operations = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
+					if(operations.size() > 0) {
+						for (String znode : operations) {
+							zk.delete(znode, zk.exists(znode, false).getAversion());
+						}
+					}
+				} catch (KeeperException e) {
+					logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+				} catch (InterruptedException e) {
+					logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+				}
 				
 				// Get /locks znodes and remove them
-				List<Integer> locksToDelete = getLocks();
-				
-				
-				//
+				try {
+					List<String> locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false));
+					if(locks.size() > 0) {
+						for (String znode : locks) {
+							zk.delete(znode, zk.exists(znode, false).getAversion());
+						}
+					}
+				} catch (KeeperException e) {
+					logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+				} catch (InterruptedException e) {
+					logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+				}
+
 				setUpNewServer();
-				// TODO: continue if there is something more here...
-				// ...
 				updateHandlePending = false;
-				// TODO: Think about the possible failure cases...
 
 				// Case: znode deleted and this process is not the leader - check if the
 				// leader is still up:
-				// - yes: do nothing
 				// - no: get the new leader and start again
-			} else {
+				// - yes: do nothing
+			} else if (!creation && !isLeader) {
+				pendingProcessesToStart++;
 				if (!(updatedZnodeList.contains(leader))) {
 					leaderElection();
 					updateHandlePending = true;
@@ -227,10 +271,9 @@ public class ClusterManager {
 				}
 			}
 		}
-		// Set a watcher in /members
-		zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
 	}
 
+	//TODO
 	private synchronized void setUpNewServer() {
 		// 1. Create the znode with the dump of the database - taken from
 		// http://www.java2s.com/Code/Java/File-Input-Output/Convertobjecttobytearrayandconvertbytearraytoobject.htm

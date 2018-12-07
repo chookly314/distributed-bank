@@ -1,5 +1,9 @@
 package es.upm.dit.cnvr.distributedBank;
 
-public class Operation {
+import java.io.Serializable;
 
+public class Operation implements Serializable{
+
+	private static final long serialVersionUID = 1L;
+	
 }
