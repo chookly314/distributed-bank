@@ -31,7 +31,6 @@ public class BankCore {
 		}
 		
 		UpdateManager updatemanager = new UpdateManager(this, zk);
-
 	}
 	
 	public static void main(String[] args) {
