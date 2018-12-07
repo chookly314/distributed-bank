@@ -1,4 +1,4 @@
-package es.upm.dit.cnvr.distributedBank;
+package es.upm.dit.cnvr.distributedBank.cluster;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -21,8 +21,7 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-import es.upm.dit.cnvr.distributedBank.persistence.ClientDB;
-import es.upm.dit.cnvr.distributedBank.persistence.ClientDBImpl;
+import es.upm.dit.cnvr.distributedBank.ConfigurationParameters;
 import es.upm.dit.cnvr.distributedBank.persistence.DBConn;
 
 public class ClusterManager {
@@ -37,8 +36,16 @@ public class ClusterManager {
 	private ZooKeeper zk;
 	// This variable stores the number of processes that have been tried to start
 	// but have not been confirmed yet.
-	private int pendingProcessesToStart = 0;
-
+	private static int pendingProcessesToStart = 0;
+	// This variable will be used only by the watchdog
+	private static int nodeCreationConfirmed = 0;
+	// Watchdog instance, only used by the leader
+	private Watchdog watchdog = null;
+	
+	// This constructor will be used only by the watchdog
+	protected ClusterManager() {	
+	}
+	
 	public ClusterManager(ZooKeeper zk) throws Exception {
 
 		this.zk = zk;
@@ -165,10 +172,16 @@ public class ClusterManager {
 					ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.length()), "");
 			logger.info(String.format("The current cluster leader is {}.", leaderString));
 			leader = Integer.valueOf(leaderString);
+			if (znodeId == leader) {
+				if (watchdog == null) {
+					watchdog = new Watchdog();
+					Thread watchdogThread= new Thread(watchdog, "Watchdog thread");
+					watchdogThread.start();
+					logger.debug("Watchdog thread started.");
+				}
 
-			// Set a watcher in /members
-			// zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT,
-			// watcherMember, s);
+			}
+			
 		} catch (Exception e) {
 			logger.error(String.format("Error electing leader: {}", e.toString()));
 		}
@@ -317,21 +330,7 @@ public class ClusterManager {
 		}
 
 		// 3. Create the new process
-		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
-		StringBuffer output = new StringBuffer();
-		Process p;
-		try {
-			p = Runtime.getRuntime().exec(command);
-			p.waitFor();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			String line = "";
-			while ((line = reader.readLine()) != null) {
-				output.append(line + "\n");
-			}
-		} catch (Exception e) {
-			logger.error(String.format("Could not create a new process. Error: {}", e));
-		}
-		logger.info("Created a znode in /state with the dump of the database. New process launched.");
+		createNewProcess();
 	}
 
 	private synchronized List<String> getLocks() throws KeeperException, InterruptedException {
@@ -352,6 +351,24 @@ public class ClusterManager {
 			setUpNewServer();
 		}
 	}
+	
+	private synchronized void createNewProcess() {
+		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
+		StringBuffer output = new StringBuffer();
+		Process p;
+		try {
+			p = Runtime.getRuntime().exec(command);
+			p.waitFor();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			String line = "";
+			while ((line = reader.readLine()) != null) {
+				output.append(line + "\n");
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Could not create a new process. Error: {}", e));
+		}
+		logger.info("Created a znode in /state with the dump of the database. New process launched.");
+	}
 
 	// *** Getters ***
 	
@@ -365,6 +382,10 @@ public class ClusterManager {
 	
 	public int getLeader () {
 		return leader;
+	}
+	
+	protected int getNodeCreationConfirmed() {
+		return nodeCreationConfirmed;
 	}
 	
 	// *** Watchers ***
@@ -387,10 +408,5 @@ public class ClusterManager {
 		public void process(WatchedEvent event) {
 			handleStateUpdate();
 		}
-	};
-	
-	// *** "Watchdog" ***
-
-	
-	
+	};	
 }
