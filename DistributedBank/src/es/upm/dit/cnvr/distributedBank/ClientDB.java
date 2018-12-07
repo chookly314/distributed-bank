@@ -4,14 +4,14 @@ public interface ClientDB {
 
 	ServiceStatusEnum create(BankClient client);
 	
-	ServiceStatusEnum update(BankClient client);
+	ServiceStatusEnum update(int accountNumber, int balance);
 	
 	BankClient read(String clientName);
 	
-	BankClient read(int accNumber);
+	BankClient read(int accountNumber);
 	
-	ServiceStatusEnum delete(int accNumber);
+	ServiceStatusEnum delete(int accountNumber);
 	
-	ServiceStatusEnum delete(String name);
+	ServiceStatusEnum delete(String clientName);
 	
 }

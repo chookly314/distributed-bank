@@ -1,6 +1,9 @@
 package es.upm.dit.cnvr.distributedBank;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -35,7 +38,8 @@ public class ClusterManager {
 		// - if not - check it there is a node in /state
 		// --- yes: get the state from there
 		// --- no: that must be because the cluster is starting
-
+		
+		
 		// Create a Zookeeper session
 		try {
 			if (zk == null) {
@@ -93,9 +97,9 @@ public class ClusterManager {
 				logger.error(String.format("Interrupted exception raised while adding the process to {}: {}",
 						ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, e.toString()));
 			}
-
 		}
 
+		// 
 	}
 
 	private synchronized List<Integer> getZnodeList() {
@@ -189,28 +193,25 @@ public class ClusterManager {
 		// by this process
 		boolean updateHandlePending = true;
 		while (updateHandlePending) {
-			// Case 1: znode added and this process is not the leader - do nothing
-			if (creation && !isLeader) {
-				// Note: this case is written for the sake of clarity in the interpretation of
-				// the algorithm
-				updateHandlePending = false;
-
-				// Case 2: znode added and this process is the leader
-			} else if (creation && isLeader) {
-				pendingProcessesToStart--;
-				updateHandlePending = false;
-
-				// Case 3: znode deleted and this process is the leader - start a new process
-				// and send it the state of the system
-			} else if (!creation && isLeader) {
-				setUpNewServer();
+			// Case: znode deleted and this process is the leader -> undo the current
+			// operation (if exists), dump the state of the system for the new process and create it
+			if (!creation && isLeader) {
+				pendingProcessesToStart++;
+				// Get /operations znode and remove it if exists
+				
+				
+				// Get /locks znodes and remove them
 				List<Integer> locksToDelete = getLocks();
+				
+				
+				//
+				setUpNewServer();
 				// TODO: continue if there is something more here...
-				//...
+				// ...
 				updateHandlePending = false;
 				// TODO: Think about the possible failure cases...
 
-				// Case 4: znode deleted and this process is not the leader - check if the
+				// Case: znode deleted and this process is not the leader - check if the
 				// leader is still up:
 				// - yes: do nothing
 				// - no: get the new leader and start again
@@ -227,19 +228,46 @@ public class ClusterManager {
 		zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
 	}
 
-	// TODO: handle state update:
-	// through zk
-	// AND 
-	// create the new process to replace the one that failed
 	private synchronized void setUpNewServer() {
+		// 1. Create the znode with the dump of the database - taken from
+		// http://www.java2s.com/Code/Java/File-Input-Output/Convertobjecttobytearrayandconvertbytearraytoobject.htm
+		DBConn db = new DBConn();
+		HashMap<Integer, BankClient> dbDump = db.getDatabase();
+		// Convert Map to byte array
+		ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+		ObjectOutputStream out = new ObjectOutputStream(byteOut);
+		out.writeObject(dbDump);
+		out.flush();
+		byte[] bytes = byteOut.toByteArray();
+		zk.create(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT, bytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+		// 2. Create the new process
+		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
+		StringBuffer output = new StringBuffer();
+		Process p;
+		try {
+			p = Runtime.getRuntime().exec(command);
+			p.waitFor();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+			String line = "";
+			while ((line = reader.readLine()) != null) {
+				output.append(line + "\n");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return output.toString();
 
 	}
 
-	// TODO: get the current locks -- decide if this class handles the incomplete update or if UpdateManager does it
+	// TODO: get the current locks -- decide if this class handles the incomplete
+	// update or if UpdateManager does it
 	private synchronized List<Integer> getLocks() {
 
 	}
-	
 
 	// *** Watchers ***
 

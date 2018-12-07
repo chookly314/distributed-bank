@@ -1,41 +1,75 @@
 package es.upm.dit.cnvr.distributedBank;
 
+import java.util.HashMap;
+import java.util.Map.Entry;
+
 public class ClientDBImpl implements ClientDB {
 
+	protected static HashMap<Integer, BankClient> database;
+
+	public ClientDBImpl () {
+	}
+	
 	@Override
 	public ServiceStatusEnum create(BankClient client) {
-		// TODO Auto-generated method stub
-		return null;
+		if (database.containsKey(client.getAccount())) {
+			return ServiceStatusEnum.CLIENT_EXISTED;
+		} else {
+			database.put(client.getAccount(), client);
+			return ServiceStatusEnum.OK;
+		}	
 	}
 
 	@Override
-	public ServiceStatusEnum update(BankClient client) {
-		// TODO Auto-generated method stub
-		return null;
+	public ServiceStatusEnum update(int accountNumber, int balance) {
+		if (database.containsKey(accountNumber)) {
+			BankClient client = database.get(accountNumber);
+			client.setBalance(balance);
+			database.put(client.getAccount(), client);
+			return ServiceStatusEnum.OK;
+		} else {
+			return ServiceStatusEnum.NOT_FOUND;
+		}
 	}
 
 	@Override
 	public BankClient read(String clientName) {
-		// TODO Auto-generated method stub
+		for (Entry <Integer, BankClient>  entry : database.entrySet()) {
+			BankClient c = entry.getValue();
+			if (c.getName().equals(clientName)) {
+				return c;
+			}
+		}
 		return null;
 	}
 
 	@Override
-	public BankClient read(int accNumber) {
-		// TODO Auto-generated method stub
-		return null;
+	public BankClient read(int accountNumber) {
+		if (database.containsKey(accountNumber)) {
+			return database.get(accountNumber);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
-	public ServiceStatusEnum delete(int accNumber) {
-		// TODO Auto-generated method stub
-		return null;
+	public ServiceStatusEnum delete(int accountNumber) {
+		if (database.containsKey(accountNumber)) {
+			database.remove(accountNumber);
+			return ServiceStatusEnum.OK;
+		} else {
+			return ServiceStatusEnum.NOT_FOUND;
+		}	
 	}
 
 	@Override
-	public ServiceStatusEnum delete(String name) {
-		// TODO Auto-generated method stub
-		return null;
+	public ServiceStatusEnum delete(String clientName) {
+		for (Entry <Integer, BankClient>  entry : database.entrySet()) {
+			BankClient c = entry.getValue();
+			if (c.getName().equals(clientName)) {
+				return ServiceStatusEnum.OK;
+			}
+		}
+		return ServiceStatusEnum.NOT_FOUND;
 	}
-
 }
