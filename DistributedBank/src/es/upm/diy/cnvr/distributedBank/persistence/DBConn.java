@@ -1,4 +1,4 @@
-package es.upm.dit.cnvr.distributedBank;
+package es.upm.diy.cnvr.distributedBank.persistence;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -8,6 +8,8 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
+
+import es.upm.dit.cnvr.distributedBank.BankClient;
 
 public class DBConn {
 

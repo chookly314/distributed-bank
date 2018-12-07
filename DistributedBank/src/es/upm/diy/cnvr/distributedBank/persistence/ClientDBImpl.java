@@ -1,7 +1,10 @@
-package es.upm.dit.cnvr.distributedBank;
+package es.upm.diy.cnvr.distributedBank.persistence;
 
 import java.util.HashMap;
 import java.util.Map.Entry;
+
+import es.upm.dit.cnvr.distributedBank.BankClient;
+import es.upm.dit.cnvr.distributedBank.ServiceStatusEnum;
 
 public class ClientDBImpl implements ClientDB {
 

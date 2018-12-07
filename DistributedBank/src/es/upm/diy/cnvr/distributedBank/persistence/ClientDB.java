@@ -1,4 +1,7 @@
-package es.upm.dit.cnvr.distributedBank;
+package es.upm.diy.cnvr.distributedBank.persistence;
+
+import es.upm.dit.cnvr.distributedBank.BankClient;
+import es.upm.dit.cnvr.distributedBank.ServiceStatusEnum;
 
 public interface ClientDB {
 
