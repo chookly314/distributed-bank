@@ -21,6 +21,7 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
+import es.upm.dit.cnvr.distributedBank.persistence.ClientDB;
 import es.upm.dit.cnvr.distributedBank.persistence.ClientDBImpl;
 import es.upm.dit.cnvr.distributedBank.persistence.DBConn;
 
@@ -30,7 +31,7 @@ public class ClusterManager {
 
 	private ArrayList<Integer> znodeList;
 	// Process znode id
-	private int znodeID;
+	private int znodeId;
 	// Leader sequential znode number in the "members" tree
 	private int leader;
 	private ZooKeeper zk;
@@ -38,23 +39,9 @@ public class ClusterManager {
 	// but have not been confirmed yet.
 	private int pendingProcessesToStart = 0;
 
-	public ClusterManager() throws Exception {
-		// Create a Zookeeper session
-		try {
-			if (zk == null) {
-				zk = new ZooKeeper(ZookeeperServersEnum.getRandomServer(),
-						ConfigurationParameters.ZOOKEEPER_SESSION_TIMEOUT, sessionWatcher);
-				try {
-					// Wait for creating the session. Use the object lock
-					wait();
-				} catch (Exception e) {
-				}
-			}
-		} catch (Exception e) {
-			logger.error(
-					String.format("Error creating the session between the ClusterManager and Zookeeper", e.toString()));
-		}
+	public ClusterManager(ZooKeeper zk) throws Exception {
 
+		this.zk = zk;
 		// Add the process to /members
 		if (zk != null) {
 			try {
@@ -76,7 +63,7 @@ public class ClusterManager {
 				znodeIDString = znodeIDString.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
 						+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
 				logger.debug(String.format("Created zNode member id: {}", znodeIDString));
-				znodeID = Integer.valueOf(znodeIDString);
+				znodeId = Integer.valueOf(znodeIDString);
 
 				// Update the list with the current znodes and set a watcher
 				znodeList = getZnodeList();
@@ -98,7 +85,7 @@ public class ClusterManager {
 				leaderElection();
 
 				// If I am the leader, check the servers number
-				if (znodeID == leader) {
+				if (znodeId == leader) {
 					if (znodeList.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
 						logger.info(String.format("The cluster has {} servers, as expected.", znodeList.size()));
 					} else {
@@ -235,7 +222,7 @@ public class ClusterManager {
 		boolean updateHandlePending = true;
 		while (updateHandlePending) {
 			// Check if this process is the leader
-			boolean isLeader = (znodeID == leader) ? true : false;
+			boolean isLeader = (znodeId == leader) ? true : false;
 
 			// Case: znode deleted and this process is the leader -> undo the current
 			// operation (if exists), dump the state of the system for the new process and
@@ -354,7 +341,7 @@ public class ClusterManager {
 
 	private synchronized void handleStateUpdate() {
 		// This method should be called only by the leader, but check it just in case
-		if (leader != znodeID) {
+		if (leader != znodeId) {
 			return;
 		}
 
@@ -366,14 +353,21 @@ public class ClusterManager {
 		}
 	}
 
+	// *** Getters ***
+	
+	public int getPendingProcessesToStart () {
+		return pendingProcessesToStart;
+	}
+	
+	public int getZnodeId () {
+		return znodeId;
+	}
+	
+	public int getLeader () {
+		return leader;
+	}
+	
 	// *** Watchers ***
-
-	private Watcher sessionWatcher = new Watcher() {
-		public void process(WatchedEvent e) {
-			logger.info(String.format("ClusterManager Zookeeper session created: {}.", e.toString()));
-			notify();
-		}
-	};
 
 	// Notified when the number of children in the members branch is updated
 	private Watcher watcherMember = new Watcher() {
@@ -394,5 +388,9 @@ public class ClusterManager {
 			handleStateUpdate();
 		}
 	};
+	
+	// *** "Watchdog" ***
 
+	
+	
 }
