@@ -1,4 +1,4 @@
-package es.upm.diy.cnvr.distributedBank.persistence;
+package es.upm.dit.cnvr.distributedBank.persistence;
 
 import es.upm.dit.cnvr.distributedBank.BankClient;
 import es.upm.dit.cnvr.distributedBank.ServiceStatusEnum;

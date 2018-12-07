@@ -1,4 +1,4 @@
-package es.upm.diy.cnvr.distributedBank.persistence;
+package es.upm.dit.cnvr.distributedBank.persistence;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

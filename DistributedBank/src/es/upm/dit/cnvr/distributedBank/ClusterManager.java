@@ -18,8 +18,8 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-import es.upm.diy.cnvr.distributedBank.persistence.ClientDBImpl;
-import es.upm.diy.cnvr.distributedBank.persistence.DBConn;
+import es.upm.dit.cnvr.distributedBank.persistence.ClientDBImpl;
+import es.upm.dit.cnvr.distributedBank.persistence.DBConn;
 
 public class ClusterManager {
 
