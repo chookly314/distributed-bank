@@ -346,7 +346,10 @@ public class ClusterManager {
 
 		// Decrement the number of pending processes
 		pendingProcessesToStart--;
-
+		
+		// Increment version
+		nodeCreationConfirmed++;
+		
 		if (pendingProcessesToStart > 0) {
 			setUpNewServer();
 		}
