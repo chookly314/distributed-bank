@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -58,13 +59,15 @@ public class ClusterManager {
 //	boolean memberCreationReceived = false;
 	// BankCore instance used to notify when the system is restoring
 	private BankCore bankCore;
-	// List of servers killed locks to remove once the system fully restored. Full paths
+	// List of servers killed locks to remove once the system fully restored. Full
+	// paths
 	private static ArrayList<String> pendingLocksToRemove = new ArrayList<String>();
-	// Will be true if a new leader is elected during an operation. This will trigger a ops followed by locks znodes deletion
+	// Will be true if a new leader is elected during an operation. This will
+	// trigger a ops followed by locks znodes deletion
 	boolean newLeaderElectedDuringUpdate = false;
-	// /state znode id of the last contacted process, this variable is only used by the leader
-	private static String lastContactedProcess = ""; 
-	
+	// /state znode id of the last contacted process, this variable is only used by
+	// the leader
+	private static String lastContactedProcess = "";
 
 	// This constructor will be used only by the watchdog
 	protected ClusterManager() {
@@ -79,10 +82,11 @@ public class ClusterManager {
 
 			// Create /state directory, if it is not created
 			boolean stateCreation = createZookeeperDirectory(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT);
-			
+
 			// Exit if something went wrong
 			if (!membersCreation || !stateCreation) {
-				logger.debug(String.format("Killing the process because membersCreation is {} and stateCreation is {}", membersCreation, stateCreation));
+				logger.debug(String.format("Killing the process because membersCreation is {} and stateCreation is {}",
+						membersCreation, stateCreation));
 				System.exit(1);
 			}
 
@@ -98,11 +102,11 @@ public class ClusterManager {
 					logger.debug("The cluster already has its goal servers number. Killing myself.");
 					System.exit(1);
 				} else {
-					// Create the socket and add a node to /state to tell the leader to contact me to synchronize the state
+					// Create the socket and add a node to /state to tell the leader to contact me
+					// to synchronize the state
 					followerStartUp();
 				}
 			}
-
 
 			// If I am the leader, check the servers number
 			if (znodeId == leader) {
@@ -174,7 +178,7 @@ public class ClusterManager {
 		}
 	}
 
-	public synchronized ArrayList<Integer> getZnodeList() {
+	private synchronized ArrayList<Integer> getZnodeList() {
 		Stat s = null;
 		try {
 			s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
@@ -199,7 +203,7 @@ public class ClusterManager {
 			if (znodeListString == null) {
 				return null;
 			}
-			
+
 			// Parse and convert the list to int
 			ArrayList<Integer> newZnodeList = new ArrayList<Integer>();
 			for (String znode : znodeListString) {
@@ -212,7 +216,7 @@ public class ClusterManager {
 			return null;
 		}
 	}
-	
+
 	private synchronized List<String> getZnodeStateList() {
 		Stat s = null;
 		try {
@@ -236,15 +240,15 @@ public class ClusterManager {
 		}
 		return null;
 	}
-	
-	
+
 	// Only accessed by the leader
 	private synchronized void verifySystemState() {
 		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
 		if (pendingProcessesToStart > 0) {
 			setUpNewServer();
 		} else {
-			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is {}", pendingProcessesToStart));
+			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is {}",
+					pendingProcessesToStart));
 			// Final state for the restoring process
 			// Remove pending processes, it there are any
 			for (String process : pendingLocksToRemove) {
@@ -259,27 +263,28 @@ public class ClusterManager {
 			// Reset pending processes
 			pendingLocksToRemove = new ArrayList<String>();
 			logger.debug("Reseting pending locks to remove.");
-			
+
 			if (newLeaderElectedDuringUpdate) {
 				undoCurrentOperation();
 			}
 		}
 	}
-	
+
 	private synchronized void leaderElection() {
 		try {
 			Stat s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
-			
+
 			// Get current leader
 			leader = getLowestId(znodeListMembers);
 			if (znodeId == leader) {
 				// TODO setIsLeader has to be synchronized
 				bankCore.setIsLeader(true);
 			}
-			
-			// A leader won't check again if he is the leader, so we set a /state watcher here and update the znodes list
+
+			// A leader won't check again if he is the leader, so we set a /state watcher
+			// here and update the znodes list
 			znodeListState = getZnodeStateList();
-			
+
 //			// The previous method returns something with the format: member-0000000001
 //			leaderString = leaderString.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.substring(1,
 //					ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.length()), "");
@@ -297,13 +302,13 @@ public class ClusterManager {
 			logger.error(String.format("Error electing leader: {}", e.toString()));
 		}
 	}
-	
+
 	private synchronized String getNewLeader(List<String> list) {
 		Long leader = 0L;
 		String leaderStr = "";
 		Pattern p = Pattern.compile("(?<=" + ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX + ")\\d{10}");
 		boolean firstTime = true;
-		
+
 		for (Iterator iterator = list.iterator(); iterator.hasNext();) {
 			String string = (String) iterator.next();
 			Matcher m = p.matcher(string);
@@ -321,7 +326,7 @@ public class ClusterManager {
 		}
 		return leaderStr;
 	}
-	
+
 	private synchronized int getLowestId(List<Integer> list) {
 		int lowestZnodeId = list.get(0);
 		for (int id : list) {
@@ -331,11 +336,11 @@ public class ClusterManager {
 		}
 		return lowestZnodeId;
 	}
-	
+
 	private synchronized void setUpNewServer() {
 		createNewProcess();
 	}
-	
+
 	private synchronized void handleZnodesUpdate() throws KeeperException, InterruptedException {
 		// Get the most recent znodeList (by asking Zookeeper) and set a watcher to
 		// avoid the possibility of missing information
@@ -348,26 +353,26 @@ public class ClusterManager {
 					"znodeList is null and that should not be possible if things work as expected.");
 		}
 //		boolean creation = (updatedZnodeList.size() > znodeListMembers.size()) ? true : false;
-		
+
 //		// Set the system in pending from /state watcher
 //		if (creation) {
 //			memberCreationReceived = true;
 //		}
-		
+
 		// Update the znodeList attribute
 //		znodeListMembers = new ArrayList<Integer>(updatedZnodeList);
-		
+
 		// Set the number of pending processes to be started to the difference between
 		// the goal and the current cluster size
 //		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
-		
+
 		// This variable will help us to determine when is the update process completed
 		// by this process
 		boolean updateHandlePending = true;
 		while (updateHandlePending) {
 			// Check if this process is the leader
 			boolean isLeader = (znodeId == leader) ? true : false;
-			
+
 			if (isLeader) {
 				updateHandlePending = false;
 				for (String id : oldZnodeListString) {
@@ -384,11 +389,9 @@ public class ClusterManager {
 					if (bankCore.isUpdating()) {
 						newLeaderElectedDuringUpdate = true;
 					}
-				} 
+				}
 			}
 
-			
-			
 //			// Case: znode deleted and this process is the leader -> undo the current
 //			// operation (if exists), dump the state of the system for the new process and
 //			// create it
@@ -449,7 +452,7 @@ public class ClusterManager {
 //			}
 		}
 	}
-	
+
 	private synchronized void undoCurrentOperation() {
 		// Get /operations znode and remove it if exists
 		List<String> operations;
@@ -466,7 +469,7 @@ public class ClusterManager {
 		} catch (InterruptedException e) {
 			logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
 		}
-		
+
 		// Get /locks znodes and delete them
 		try {
 			List<String> locks = getLocks();
@@ -481,12 +484,12 @@ public class ClusterManager {
 			logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
 		}
 	}
-	
+
 	private synchronized List<String> getLocks() throws KeeperException, InterruptedException {
 		return zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false,
 				zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false));
 	}
-	
+
 	// Only accessed by the leader
 	private synchronized void handleStateUpdate() {
 		znodeListState = getZnodeStateList();
@@ -494,7 +497,7 @@ public class ClusterManager {
 		if (leader != znodeId) {
 			return;
 		}
-		
+
 		if (lastContactedProcess.equals("")) {
 			if (znodeListState.size() != 0) {
 				lastContactedProcess = znodeListState.get(0);
@@ -512,10 +515,9 @@ public class ClusterManager {
 				verifySystemState();
 			}
 		}
-		
-		
+
 	}
-	
+
 	private synchronized void createNewProcess() {
 		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
 		StringBuffer output = new StringBuffer();
@@ -533,101 +535,137 @@ public class ClusterManager {
 		}
 		logger.info("Created a znode in /state with the dump of the database. New process launched.");
 	}
-	
+
 	// *** Getters ***
-	
+
 	public int getPendingProcessesToStart() {
 		return pendingProcessesToStart;
 	}
-	
+
 	public int getZnodeId() {
 		return znodeId;
 	}
-	
+
 	public int getLeader() {
 		return leader;
 	}
-	
+
 	protected int getNodeCreationConfirmed() {
 		return nodeCreationConfirmed;
 	}
-	
+
 	// *** Sockets related methods ***
-	
+
 	private synchronized void synchronizeWithProcess(String zKStatePath) {
-		// Read the data from the znode to get the port 
+		// Read the data from the znode to get the port
 		int port = -1;
 		try {
-			port = Integer.parseInt(new String( zk.getData(zKStatePath, false, zk.exists(zKStatePath, false)) , "UTF-8"));
+			port = Integer.parseInt(new String(zk.getData(zKStatePath, false, zk.exists(zKStatePath, false)), "UTF-8"));
 		} catch (NumberFormatException | UnsupportedEncodingException | KeeperException | InterruptedException e) {
-			logger.error(String.format("Could not get the port number. Error is: {}. Exiting...", e ));
+			logger.error(String.format("Could not get the port number. Error is: {}. Exiting...", e));
 			System.exit(1);
 		}
-		
-		// Send the state via sockets
-		if (port != -1) {
-			// TODO: Connect to the socket and send the state
-			//DBConn.getDatabase();
-		} else {
-			logger.error("Could not get the port number. Error is: {}. Exiting...");
-			System.exit(1);
+
+		try {
+			// Send the state via sockets
+			if (port != -1) {
+				Socket socket = new Socket("localhost", port);
+				logger.debug(String.format("Client (leader) should now be connected to the socket, on port {}", port));
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				os.writeObject(DBConn.getDatabase());
+				logger.debug("Database sent to the new process.");
+
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
+				SocketsOperations response = (SocketsOperations) is.readObject();
+				logger.debug(String.format("Follower answer after receiving the database is: {}", response));
+				socket.close();
+
+			} else {
+				logger.error("Could not get the port number. Error is: {}. Exiting...");
+				System.exit(1);
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Error syncing with a the process. Error: {}", e));
+
 		}
+
 	}
-	
+
 	private synchronized void followerStartUp() {
 
-		// Create a socker
+		// Create a port to listen on
 		Random rand = new Random();
 		int i = rand.nextInt(1000);
 		int port = i + 10000; // the port will be in the 10000-11000 range
-		ServerSocket listener = new ServerSocket(port);
-		byte[] portToSend = String.valueOf(port).getBytes("UTF-8");
-		
-       
-		// Start listenning
-		boolean firstTime = true;
+
 		boolean dumpCompletedOk = false;
+
+		ServerSocket listener = null;
+		
 		try {
-            while (true) {
-                Socket socket = listener.accept();
-                if (firstTime) {
-                	// Create a znode in /state to notify the leader that the process is ready to synchronize and to notify the listenning port
-            		znodeIdState = zk.create(
-            				ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
-            				+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX,
-            				new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-            		zk.create(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + ConfigurationParameters.ZOOKEEPER_TREE_STATE_PREFIX, portToSend, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-            		firstTime = false;
-                }
-                
-//                try {
-//                    PrintWriter out =
-//                        new PrintWriter(socket.getOutputStream(), true);
-//                    out.println(new Date().toString());
-//                } finally {
-//                    socket.close();
-//                }
-                
-                //TODO get the dump of the database
-            }
-        }
-        finally {
-        	if (dumpCompletedOk) {
-            	//TODO
-        		addToMembers();
-            	
-            } else {
-            	logger.debug("Killing myself because I was not able to synchronize with the leader.");
-            	listener.close();
-            	System.exit(1);
-            }
-        }
-		
-		
+		// Port to write in /state znode
+		byte[] portToSend = String.valueOf(port).getBytes("UTF-8");
+
+
+		// Create the socket
+		listener = new ServerSocket(port);
+
+			// Start listening
+			boolean firstTime = true;
+			while (true) {
+				Socket socket = listener.accept();
+				if (firstTime) {
+					// Create a znode in /state to notify the leader that the process is ready to
+					// synchronize and to notify the listening port
+					znodeIdState = zk.create(
+							ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
+									+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX,
+							new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+					zk.create(
+							ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT
+									+ ConfigurationParameters.ZOOKEEPER_TREE_STATE_PREFIX,
+							portToSend, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+					firstTime = false;
+				}
+
+				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
+
+				try {
+					byte[] dbDump;
+					dbDump = (byte[]) is.readObject();
+					DBConn.createDatabase(dbDump);
+					dumpCompletedOk = true;
+					os.writeObject(new SocketsOperations(SocketsOperationEnum.OK));
+				} catch (ClassNotFoundException e) {
+					os.writeObject(new SocketsOperations(SocketsOperationEnum.ERROR));
+					e.printStackTrace();
+				} catch (IOException e) {
+					os.writeObject(new SocketsOperations(SocketsOperationEnum.ERROR));
+					logger.error(String.format("Error syncing the database.", e));
+				}
+
+				if (dumpCompletedOk) {
+					addToMembers();
+				}
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Something happened while syncing with the leader. Killing myself...", e));
+		} finally {
+			if (dumpCompletedOk == false) {
+				logger.debug("Killing myself because I was not able to synchronize with the leader.");
+				try {
+					listener.close();
+				} catch (IOException e) {
+					logger.error(String.format("Error closing socket: {}", e));
+				}
+				System.exit(1);
+			}
+		}
 	}
-	
+
 	// *** Watchers ***
-	
+
 	// Notified when the number of children in the members branch is updated
 	private Watcher watcherMember = new Watcher() {
 		public void process(WatchedEvent event) {
@@ -640,7 +678,7 @@ public class ClusterManager {
 			}
 		}
 	};
-	
+
 	// Notified when the /state directory is modified
 	private Watcher watcherState = new Watcher() {
 		public void process(WatchedEvent event) {
@@ -648,4 +686,3 @@ public class ClusterManager {
 		}
 	};
 }
-
