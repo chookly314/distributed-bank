@@ -92,11 +92,10 @@ public class ClusterManager {
 
 			// Check if there are any members
 			znodeListMembers = getZnodeList();
-			//System.out.println(znodeListMembers.toString());
+			// System.out.println(znodeListMembers.toString());
 			if (znodeListMembers.isEmpty()) {
 				// This process is the first one, the first leader
 				addToMembers();
-				//logger.info("add to members pasado");
 				znodeListMembers = getZnodeList();
 				leaderElection();
 				verifySystemState();
@@ -120,8 +119,8 @@ public class ClusterManager {
 			Stat s = zk.exists(dir, false);
 			if (s == null) {
 				response = zk.create(dir, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+				logger.info(String.format("%s directory created. Response: %s", dir, response));
 			}
-			logger.info(String.format("%s directory created. Response: %s", dir, response));
 			return true;
 		} catch (KeeperException | InterruptedException e) {
 			logger.error(String.format("Could not create Zookeeper %s directory. Error: ", dir, e));
@@ -185,9 +184,9 @@ public class ClusterManager {
 			// Parse and convert the list to int
 			ArrayList<Integer> newZnodeList = new ArrayList<Integer>();
 			for (String znode : znodeListString) {
-				//logger.info(znode);
+				// logger.info(znode);
 				znode = znode.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX_NO_SLASH, "");
-				//logger.info(znode);
+				// logger.info(znode);
 				newZnodeList.add(Integer.valueOf(znode));
 			}
 			return newZnodeList;
@@ -206,7 +205,7 @@ public class ClusterManager {
 
 		if (s != null) {
 			try {
-				return zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherState, s);
+				return zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT, watcherState, s);
 			} catch (KeeperException e) {
 				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: %s",
 						e.toString()));
@@ -474,20 +473,24 @@ public class ClusterManager {
 	// Only accessed by the leader
 	private synchronized void handleStateUpdate() {
 		znodeListState = getZnodeStateList();
-		// This method should be called only by the leader, but check it just in case
+		// This method should be called only by the leader, but verify it just in case
 		if (leader != znodeId) {
 			return;
 		}
 
+		logger.debug("Handling znodeStateUpdate...");
+
 		if (lastContactedProcess.equals("")) {
 			if (znodeListState.size() != 0) {
 				lastContactedProcess = getLowestStateIdZnode(znodeListState);
+				logger.debug(String.format("Contacting with process %s", lastContactedProcess));
 				synchronizeWithProcess(lastContactedProcess);
 			}
 		} else {
 			if ((znodeListState.size() != 0) && (getLowestStateIdZnode(znodeListState).equals(lastContactedProcess))) {
 				return;
-			} else if ((znodeListState.size() != 0) && !(getLowestStateIdZnode(znodeListState).equals(lastContactedProcess))) {
+			} else if ((znodeListState.size() != 0)
+					&& !(getLowestStateIdZnode(znodeListState).equals(lastContactedProcess))) {
 				lastContactedProcess = getLowestStateIdZnode(znodeListState);
 				synchronizeWithProcess(lastContactedProcess);
 			} else {
@@ -508,14 +511,15 @@ public class ClusterManager {
 		}
 		return lowest;
 	}
-	
+
 	private synchronized void createNewProcess() {
 		String command = ConfigurationParameters.SERVER_CREATION;
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
+			logger.info(String.format("Executing command %s to create a new process.", command));
 			p = Runtime.getRuntime().exec(command);
-			p.waitFor();
+//			p.waitFor();
 			logger.debug("New terminal should pop up.");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String line = "";
@@ -552,7 +556,13 @@ public class ClusterManager {
 		// Read the data from the znode to get the port
 		int port = -1;
 		try {
-			port = Integer.parseInt(new String(zk.getData(zKStatePath, false, zk.exists(zKStatePath, false)), "UTF-8"));
+			logger.info(String.format("Getting port from the process with /state znode %s.",
+					ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath));
+			port = Integer.parseInt(new String(
+					zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath, false,
+							zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath, false)),
+					"UTF-8"));
+			logger.info(String.format("Port: %d", port));
 		} catch (NumberFormatException | UnsupportedEncodingException | KeeperException | InterruptedException e) {
 			logger.error(String.format("Could not get the port number. Error is: %s. Exiting...", e));
 			System.exit(1);
@@ -569,7 +579,8 @@ public class ClusterManager {
 
 				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
 				SocketsOperations response = (SocketsOperations) is.readObject();
-				logger.debug(String.format("Follower answer after receiving the database is: %s", response.getResponse()));
+				logger.debug(
+						String.format("Follower answer after receiving the database is: %s", response.getResponse()));
 				socket.close();
 
 			} else {
@@ -590,38 +601,41 @@ public class ClusterManager {
 		int i = rand.nextInt(1000);
 		int port = i + 10000; // the port will be in the 10000-11000 range
 
+		logger.debug(String.format("The process will listen in the port %d", port));
+
 		boolean dumpCompletedOk = false;
 
 		ServerSocket listener = null;
-		
+
 		try {
-		// Port to write in /state znode
-		byte[] portToSend = String.valueOf(port).getBytes("UTF-8");
+			// Port to write in /state znode
+			byte[] portToSend = String.valueOf(port).getBytes("UTF-8");
 
-
-		// Create the socket
-		listener = new ServerSocket(port);
+			// Create the socket
+			listener = new ServerSocket(port);
 
 			// Start listening
 			boolean firstTime = true;
 			while (true) {
-				Socket socket = listener.accept();
+				// TODO Consider making it non-blocking and create the socket before the znode
+				// https://www.developer.com/java/data/what-is-non-blocking-socket-programming-in-java.html
 				if (firstTime) {
 					// Create a znode in /state to notify the leader that the process is ready to
 					// synchronize and to notify the listening port
+					logger.debug("Creating a znode in /state");
 					znodeIdState = zk.create(
-							ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
-									+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX,
-							new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-					zk.create(
 							ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT
 									+ ConfigurationParameters.ZOOKEEPER_TREE_STATE_PREFIX,
 							portToSend, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+
 					firstTime = false;
 				}
 
+				Socket socket = listener.accept();
 				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
 				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
+
+				logger.debug("Data received");
 
 				try {
 					byte[] dbDump;
@@ -639,6 +653,7 @@ public class ClusterManager {
 
 				if (dumpCompletedOk) {
 					addToMembers();
+					break;
 				}
 			}
 		} catch (Exception e) {
