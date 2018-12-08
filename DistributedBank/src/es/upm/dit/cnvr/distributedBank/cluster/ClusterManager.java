@@ -41,7 +41,7 @@ public class ClusterManager {
 	// Full paths
 	private static List<String> znodeListState;
 	// Process znode id
-	private static int znodeId;
+	private static Integer znodeId;
 	// Full path
 	private static String znodeIdState;
 	// Leader sequential znode number in the "members" tree
@@ -85,16 +85,19 @@ public class ClusterManager {
 
 			// Exit if something went wrong
 			if (!membersCreation || !stateCreation) {
-				logger.debug(String.format("Killing the process because membersCreation is {} and stateCreation is {}",
+				logger.info(String.format("Killing the process because membersCreation is %s and stateCreation is %s",
 						membersCreation, stateCreation));
 				System.exit(1);
 			}
 
 			// Check if there are any members
 			znodeListMembers = getZnodeList();
-			if (znodeListMembers == null) {
+			//System.out.println(znodeListMembers.toString());
+			if (znodeListMembers.isEmpty()) {
 				// This process is the first one, the first leader
 				addToMembers();
+				//logger.info("add to members pasado");
+				znodeListMembers = getZnodeList();
 				leaderElection();
 				verifySystemState();
 			} else {
@@ -111,7 +114,7 @@ public class ClusterManager {
 //			// If I am the leader, check the servers number
 //			if (znodeId == leader) {
 //				if (znodeListMembers.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
-//					logger.info(String.format("The cluster has {} servers, as expected.", znodeListMembers.size()));
+//					logger.info(String.format("The cluster has %s servers, as expected.", znodeListMembers.size()));
 //				} else {
 //					// This case means that the number of servers is lower than expected and that we
 //					// are in one
@@ -146,10 +149,10 @@ public class ClusterManager {
 			if (s == null) {
 				response = zk.create(dir, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			}
-			logger.info(String.format("{} directory created. Response: {}", dir, response));
+			logger.info(String.format("%s directory created. Response: %s", dir, response));
 			return true;
 		} catch (KeeperException | InterruptedException e) {
-			logger.error(String.format("Could not create Zookeeper {} directory. Error: ", dir, e));
+			logger.error(String.format("Could not create Zookeeper %s directory. Error: ", dir, e));
 			return false;
 		}
 	}
@@ -164,17 +167,19 @@ public class ClusterManager {
 					new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 			znodeIDString = znodeIDString.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
 					+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
-			logger.debug(String.format("Created zNode member id: {}", znodeIDString));
+			logger.debug(String.format("Created zNode member id: %s", znodeIDString));
 			znodeId = Integer.valueOf(znodeIDString);
 			zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember);
 		} catch (KeeperException e) {
-			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: {}",
+			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: %s",
 					e.toString()));
 			System.exit(1);
 		} catch (InterruptedException e) {
-			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: {}",
+			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: %s",
 					e.toString()));
 			System.exit(1);
+		} catch (NumberFormatException e) {
+			logger.error(e.toString());
 		}
 	}
 
@@ -183,7 +188,7 @@ public class ClusterManager {
 		try {
 			s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
 		} catch (KeeperException | InterruptedException e) {
-			logger.error(String.format("Error getting the members tree: {}", e.toString()));
+			logger.error(String.format("Error getting the members tree: %s", e.toString()));
 		}
 
 		if (s != null) {
@@ -192,11 +197,11 @@ public class ClusterManager {
 				znodeListString = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember, s);
 				znodeListMembersString = znodeListString;
 			} catch (KeeperException e) {
-				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: {}",
+				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: %s",
 						e.toString()));
 				System.exit(1);
 			} catch (InterruptedException e) {
-				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: {}",
+				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: %s",
 						e.toString()));
 				System.exit(1);
 			}
@@ -207,8 +212,9 @@ public class ClusterManager {
 			// Parse and convert the list to int
 			ArrayList<Integer> newZnodeList = new ArrayList<Integer>();
 			for (String znode : znodeListString) {
-				znode = znode.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT
-						+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
+				//logger.info(znode);
+				znode = znode.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX_NO_SLASH, "");
+				//logger.info(znode);
 				newZnodeList.add(Integer.valueOf(znode));
 			}
 			return newZnodeList;
@@ -222,18 +228,18 @@ public class ClusterManager {
 		try {
 			s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT, false);
 		} catch (KeeperException | InterruptedException e) {
-			logger.error(String.format("Error getting the state tree: {}", e.toString()));
+			logger.error(String.format("Error getting the state tree: %s", e.toString()));
 		}
 
 		if (s != null) {
 			try {
 				return zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherState, s);
 			} catch (KeeperException e) {
-				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: {}",
+				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: %s",
 						e.toString()));
 				System.exit(1);
 			} catch (InterruptedException e) {
-				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: {}",
+				logger.error(String.format("Error getting members znodes tree. Exiting to avoid inconsistencies: %s",
 						e.toString()));
 				System.exit(1);
 			}
@@ -243,11 +249,12 @@ public class ClusterManager {
 
 	// Only accessed by the leader
 	private synchronized void verifySystemState() {
+		logger.info("Enter verifySystemState");
 		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
 		if (pendingProcessesToStart > 0) {
 			setUpNewServer();
 		} else {
-			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is {}",
+			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is %s",
 					pendingProcessesToStart));
 			// Final state for the restoring process
 			// Remove pending processes, it there are any
@@ -255,9 +262,9 @@ public class ClusterManager {
 				try {
 					zk.delete(process, -1);
 				} catch (InterruptedException e) {
-					logger.error(String.format("Problem removing pending lock {}. Error: {}", process, e));
+					logger.error(String.format("Problem removing pending lock %s. Error: %s", process, e));
 				} catch (KeeperException e) {
-					logger.error(String.format("Problem removing pending lock {}. Error: {}", process, e));
+					logger.error(String.format("Problem removing pending lock %s. Error: %s", process, e));
 				}
 			}
 			// Reset pending processes
@@ -289,7 +296,7 @@ public class ClusterManager {
 //			// The previous method returns something with the format: member-0000000001
 //			leaderString = leaderString.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.substring(1,
 //					ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.length()), "");
-//			logger.info(String.format("The current cluster leader is {}.", leaderString));
+//			logger.info(String.format("The current cluster leader is %s.", leaderString));
 //			leader = Integer.valueOf(leaderString);
 //			if (znodeId == leader) {
 //				if (watchdog == null) {
@@ -300,7 +307,7 @@ public class ClusterManager {
 //				}
 //			}
 		} catch (Exception e) {
-			logger.error(String.format("Error electing leader: {}", e.toString()));
+			logger.error(String.format("Error electing leader: %s", e.toString()));
 		}
 	}
 
@@ -410,9 +417,9 @@ public class ClusterManager {
 //						}
 //					}
 //				} catch (KeeperException e) {
-//					logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+//					logger.error(String.format("Could not get the list of znodes in /operations. Error: %s", e));
 //				} catch (InterruptedException e) {
-//					logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+//					logger.error(String.format("Could not get the list of znodes in /operations. Error: %s", e));
 //				}
 //				
 //				// Get /locks znodes and delete them
@@ -424,9 +431,9 @@ public class ClusterManager {
 //						}
 //					}
 //				} catch (KeeperException e) {
-//					logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+//					logger.error(String.format("Could not get the list of znodes in /locks. Error: %s", e));
 //				} catch (InterruptedException e) {
-//					logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+//					logger.error(String.format("Could not get the list of znodes in /locks. Error: %s", e));
 //				}
 //				
 //				// Check if the system is creating a new process:
@@ -466,9 +473,9 @@ public class ClusterManager {
 				}
 			}
 		} catch (KeeperException e) {
-			logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+			logger.error(String.format("Could not get the list of znodes in /operations. Error: %s", e));
 		} catch (InterruptedException e) {
-			logger.error(String.format("Could not get the list of znodes in /operations. Error: {}", e));
+			logger.error(String.format("Could not get the list of znodes in /operations. Error: %s", e));
 		}
 
 		// Get /locks znodes and delete them
@@ -480,9 +487,9 @@ public class ClusterManager {
 				}
 			}
 		} catch (KeeperException e) {
-			logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+			logger.error(String.format("Could not get the list of znodes in /locks. Error: %s", e));
 		} catch (InterruptedException e) {
-			logger.error(String.format("Could not get the list of znodes in /locks. Error: {}", e));
+			logger.error(String.format("Could not get the list of znodes in /locks. Error: %s", e));
 		}
 	}
 
@@ -530,7 +537,7 @@ public class ClusterManager {
 	}
 	
 	private synchronized void createNewProcess() {
-		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
+		String command = ConfigurationParameters.SERVER_CREATION_LINUX;
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
@@ -542,7 +549,7 @@ public class ClusterManager {
 				output.append(line + "\n");
 			}
 		} catch (Exception e) {
-			logger.error(String.format("Could not create a new process. Error: {}", e));
+			logger.error(String.format("Could not create a new process. Error: %s", e));
 		}
 		logger.info("Created a znode in /state with the dump of the database. New process launched.");
 	}
@@ -573,7 +580,7 @@ public class ClusterManager {
 		try {
 			port = Integer.parseInt(new String(zk.getData(zKStatePath, false, zk.exists(zKStatePath, false)), "UTF-8"));
 		} catch (NumberFormatException | UnsupportedEncodingException | KeeperException | InterruptedException e) {
-			logger.error(String.format("Could not get the port number. Error is: {}. Exiting...", e));
+			logger.error(String.format("Could not get the port number. Error is: %s. Exiting...", e));
 			System.exit(1);
 		}
 
@@ -581,22 +588,22 @@ public class ClusterManager {
 			// Send the state via sockets
 			if (port != -1) {
 				Socket socket = new Socket("localhost", port);
-				logger.debug(String.format("Client (leader) should now be connected to the socket, on port {}", port));
+				logger.debug(String.format("Client (leader) should now be connected to the socket, on port %s", port));
 				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
 				os.writeObject(DBConn.getDatabase());
 				logger.debug("Database sent to the new process.");
 
 				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
 				SocketsOperations response = (SocketsOperations) is.readObject();
-				logger.debug(String.format("Follower answer after receiving the database is: {}", response.getResponse()));
+				logger.debug(String.format("Follower answer after receiving the database is: %s", response.getResponse()));
 				socket.close();
 
 			} else {
-				logger.error("Could not get the port number. Error is: {}. Exiting...");
+				logger.error("Could not get the port number. Error is: %s. Exiting...");
 				System.exit(1);
 			}
 		} catch (Exception e) {
-			logger.error(String.format("Error syncing with a the process. Error: {}", e));
+			logger.error(String.format("Error syncing with a the process. Error: %s", e));
 
 		}
 
@@ -668,7 +675,7 @@ public class ClusterManager {
 				try {
 					listener.close();
 				} catch (IOException e) {
-					logger.error(String.format("Error closing socket: {}", e));
+					logger.error(String.format("Error closing socket: %s", e));
 				}
 				System.exit(1);
 			}

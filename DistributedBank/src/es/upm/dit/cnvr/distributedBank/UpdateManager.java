@@ -1,5 +1,11 @@
 package es.upm.dit.cnvr.distributedBank;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -28,12 +34,16 @@ public class UpdateManager {
 		this.cm = cm;
 		this.database = database;
 		
+		logger.debug("Instantiating UpdateManager");
+
+		
 		//Create a node for storing operations
 		try {
 			Stat s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false);
 			if (s == null) {
 				zk.create(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, new byte[0],
-						Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);	
+						Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+				logger.debug("Creating Operations node");
 			}
 		} catch (Exception e)
 		{
@@ -45,7 +55,8 @@ public class UpdateManager {
 			Stat s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, false);
 			if (s == null) {
 				zk.create(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, new byte[0],
-						Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);	
+						Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+				logger.debug("Create locks node");
 			}
 		} catch (Exception e)
 		{
@@ -56,6 +67,7 @@ public class UpdateManager {
 		if (!bankcore.isLeader()) {
 			try {
 				Stat s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher);
+				logger.debug("Creating watcher for operations node");
 			} catch (Exception e) {
 				logger.error("Error setting watcher for operations node");
 			} 
@@ -65,6 +77,7 @@ public class UpdateManager {
 	
 	public void processOperation(Operation operation) {
 		if (bankcore.isLeader()) {
+			logger.debug("Got processOperation request");
 			//Create a lock for every process
 			List<Integer> nodeList = cm.getZnodeList();
 			for (Integer item:nodeList) {
@@ -74,17 +87,34 @@ public class UpdateManager {
 									+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX
 									+ item.toString(),
 							new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+					logger.debug("Created lock for"+znodeIDString);
 				} catch (Exception e){
 					logger.error("Error creating lock for node"+item.toString());
 					logger.error(e.toString());
 				}
 			}
-			
+			logger.debug("All locks created");
+
 			//Create an operation znode
+			logger.info(operation.toString());
+			
 			byte[] data = SerializationUtils.serialize(operation);
+			/*byte[] data = new byte[0];
+			try {
+				ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+				ObjectOutputStream out = new ObjectOutputStream(byteOut);
+				out.writeObject(operation);
+				out.flush();
+				data = byteOut.toByteArray();
+				logger.info("Serializing operation");
+			} catch (Exception e) {
+				logger.error("Error serializing operation "+e.toString());
+			}
+			*/
 			try {
 				Stat s = zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT,
 						data, -1);
+				logger.debug("Created operation znode");
 			} catch (Exception e) {
 				logger.error("Error submitting operation znode");
 				logger.error(e.toString());
@@ -100,6 +130,8 @@ public class UpdateManager {
 				}
 				locks = this.getLocks();
 			}
+			
+			//logger.info("victoria");
 			
 			//Delete my own lock (leader)
 			try {
@@ -137,12 +169,27 @@ public class UpdateManager {
 			//Connect to ZooKeeper and get the operation
 			try {
 				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
-				operation = SerializationUtils.deserialize(data);
-				//byte[] data = SerializationUtils.serialize(operation);
+				
+				//operation = SerializationUtils.deserialize(data);	
+				
+				/*	Object obj = null;
+					ByteArrayInputStream bis = null;
+					ObjectInputStream ois = null;
+					bis = new ByteArrayInputStream(data);
+					ois = new ObjectInputStream(bis);
+					obj = ois.readObject();
+					operation = (Operation) obj;
+					bis.close();
+				
+				*/
 			} catch (Exception e) {
 				logger.error("Error getting operation from zookeeper:");
 				logger.error(e.toString());
-			}
+			} /*catch (ClassNotFoundException e) {
+				logger.error(String.format("Could not cast from object to HashMap. Error: {}", e));
+			} catch (IOException e) {
+				logger.error(String.format("Could not read input stram. Error: {}", e));
+			} */
 			
 			//Delete my lock
 			try {
@@ -212,8 +259,7 @@ public class UpdateManager {
 	public boolean containsOnlyLeader(List<String> locks) {
 		if (locks.size() != 1) {
 			return false;
-		} else if (locks.get(0).equals(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
-					+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getLeader()))) {
+		} else if (locks.get(0).equals(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX_NO_SLASH + Integer.toString(cm.getLeader()))) {
 			return true;
 		} else {
 			logger.error("There is only one lock and it is not the leader's:");

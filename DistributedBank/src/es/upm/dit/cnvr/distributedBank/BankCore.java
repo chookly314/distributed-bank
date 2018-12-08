@@ -1,5 +1,6 @@
 package es.upm.dit.cnvr.distributedBank;
 
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -21,7 +22,7 @@ public class BankCore {
 	public boolean updating;
 
 	public BankCore () {
-		this.leader = true;
+		this.leader = false;
 		this.updating = false;		
 		Scanner sc = new Scanner(System.in);
 		boolean exit    = false;
@@ -36,6 +37,7 @@ public class BankCore {
 			if (zk == null) {
 				zk = new ZooKeeper(ZookeeperServersEnum.getRandomServer(),
 						ConfigurationParameters.ZOOKEEPER_SESSION_TIMEOUT, sessionWatcher);
+				logger.info("Created ZK session");
 				try {
 					// Wait for creating the session. Use the object lock
 					wait();
@@ -51,7 +53,7 @@ public class BankCore {
 		try {
 			clustermanager = new ClusterManager(zk, this);
 		} catch (Exception e) {
-			logger.error("Can't create Cluster Manager");
+			logger.error(String.format("Can't create Cluster Manager: %s", e.toString()));
 		}
 		UpdateManager updatemanager = new UpdateManager(this, zk, clustermanager, clientDB);
 				
@@ -75,32 +77,34 @@ public class BankCore {
 				case 1: // Create client
 					client = readClient(sc);
 					//Pasar a updateManager para crear este cliente.
-					//updatemanager.persistOperation(OperationEnum.CREATE);
-					//updateManager.create(client,zk);
+					updatemanager.processOperation(new Operation(OperationEnum.CREATE, client));
 					break;
 				case 2: // Read client
-					if(!updating) {
+					
 					System. out .print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
 						//leer a partir del número de cuenta
 						client = clientDB.read(accNumber);
-						System.out.print(client);
+						if (client != null) {
+							System.out.println(client.toString());
+						} else {
+							System.out.println("Sorry, the requested account doesn't exist");
+						}
 				
 					} else {
 						System.out.println("The text provided is not an integer");
 						sc.next();
 					}
-					}
-					else {
+					/*else {
 						System.out.println("The system is busy, try it again later. Thanks.");
 						sc.next();
-					}
+					}*/
 					break;
 				case 3: // Update client
 					//Pasar al updateManager
 		
-					System. out .print(">>> Enter account number (int) = ");
+					System.out.print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
 					} else {
@@ -114,26 +118,21 @@ public class BankCore {
 						System.out.println("The text provided is not an integer");
 						sc.next();
 					}
-					//Pasar al update manager para que actualice
-					//updateManager.updateClient(accNumber, balance, zk)
-					// o creo clase client y lo paso
-					
+					updatemanager.processOperation(new Operation(OperationEnum.UPDATE, accNumber, balance));
 					break;
 				case 4: // Delete client
 					System. out .print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
-						//pasar a updateManager para que borre
-						//updateManager.deleteClient(accNumber);
-						//hacer Client y borrar
+						updatemanager.processOperation(new Operation(OperationEnum.DELETE, accNumber));
 					} else {
 						System.out.println("The text provided is not an integer");
 						sc.next();
 					}
 					break;
 				case 5: //listar todos
-					if(!updating) {
-						//System.out.println(clientDB.read(););		
+					for (BankClient user : clientDB.readAll()) {
+						System.out.println(user.toString());
 					}
 					break;
 				case 6:
@@ -142,7 +141,7 @@ public class BankCore {
 					break;
 				}
 			} catch (Exception e) {
-				System.out.println("Exception at Main. Error read data");
+				logger.error("Error reading data: "+e.toString());
 			}
 
 		}
@@ -152,7 +151,7 @@ public class BankCore {
 	}
 	
 	public static void main(String[] args) {
-		
+		BasicConfigurator.configure();
 		BankCore bankcore = new BankCore();
 	
 		
@@ -197,13 +196,14 @@ public class BankCore {
 	
 	public synchronized void setIsLeader(boolean leader) {
 		this.leader = leader;
+		logger.info("Setting a leader");
 	}
 	
 	// *** Watchers ***
 
 	private Watcher sessionWatcher = new Watcher() {
 		public void process(WatchedEvent e) {
-			logger.info(String.format("ClusterManager Zookeeper session created: {}.", e.toString()));
+			logger.info(String.format("ClusterManager Zookeeper session created: %s.", e.toString()));
 			notify();
 		}
 	};

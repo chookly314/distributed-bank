@@ -1,6 +1,8 @@
 package es.upm.dit.cnvr.distributedBank;
 
-public class BankClientImpl implements BankClient {
+import java.io.Serializable;
+
+public class BankClientImpl implements BankClient, Serializable{
 
 	private int accountNumber;
 	private int balance;
@@ -45,5 +47,18 @@ public class BankClientImpl implements BankClient {
 		// TODO Auto-generated method stub
 		this.name=name;
 	}
+	
+	@Override
+	public String toString() {
+
+		String string = "";
+
+		string+= "Account: "+Integer.toString(accountNumber)+" ";
+		string+= "Name: "+name+" ";
+		string+= "Balance: "+Integer.toString(balance);
+
+		return string;
+	}
+	
 
 }

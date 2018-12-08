@@ -1,5 +1,7 @@
 package es.upm.dit.cnvr.distributedBank.persistence;
 
+import java.util.ArrayList;
+
 import es.upm.dit.cnvr.distributedBank.BankClient;
 import es.upm.dit.cnvr.distributedBank.ServiceStatusEnum;
 
@@ -12,9 +14,11 @@ public interface ClientDB {
 	BankClient read(String clientName);
 	
 	BankClient read(int accountNumber);
-	
+		
 	ServiceStatusEnum delete(int accountNumber);
 	
 	ServiceStatusEnum delete(String clientName);
+
+	ArrayList<BankClient> readAll();
 	
 }

@@ -12,8 +12,9 @@ public class Operation implements Serializable{
 	private Integer accountNumber = 0;
 	private ClientDB clientDB = null;
 	private Integer balance = 0;
+	private String name;
 	
-	// ADD_CLIENT, UPDATE_CLIENT
+	// ADD_CLIENT
 	public Operation(OperationEnum operation, BankClient client) {
 		this.operation = operation;
 		this.client = client;
@@ -30,12 +31,13 @@ public class Operation implements Serializable{
 		this.clientDB = clientDB;
 	}
 
+	//UPDATE
 	public Operation(OperationEnum operation, Integer accountNumber, Integer balance) {
 		this.operation = operation;
 		this.accountNumber = accountNumber;
 		this.balance = balance;
 	}
-	
+		
 	public OperationEnum getOperation() {
 		return operation;
 	}

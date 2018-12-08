@@ -2,14 +2,16 @@ package es.upm.dit.cnvr.distributedBank;
 
 public  class ConfigurationParameters {
 	
-	public static int  CLUSTER_GOAL_SIZE = 3;
+	public static int  CLUSTER_GOAL_SIZE = 1;
 	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 10; // seconds
 	public static int ZOOKEEPER_SESSION_TIMEOUT = 5000;
-	private static String ZOOKEEPER_TREE_SEPARATOR = "-";
+	public static String ZOOKEEPER_TREE_SEPARATOR = "-";
 	public static String ZOOKEEPER_TREE_LOCKS_ROOT = "/locks";
 	public static String ZOOKEEPER_TREE_LOCKS_PREFIX = "/lock" + ZOOKEEPER_TREE_SEPARATOR;
+	public static String ZOOKEEPER_TREE_LOCKS_PREFIX_NO_SLASH = "lock" + ZOOKEEPER_TREE_SEPARATOR;
 	public static String ZOOKEEPER_TREE_MEMBERS_ROOT = "/members";
 	public static String ZOOKEEPER_TREE_MEMBERS_PREFIX = "/member" + ZOOKEEPER_TREE_SEPARATOR;
+	public static String ZOOKEEPER_TREE_MEMBERS_PREFIX_NO_SLASH = "member" + ZOOKEEPER_TREE_SEPARATOR;
 	public static String ZOOKEEPER_TREE_STATE_PREFIX = "/state" + ZOOKEEPER_TREE_SEPARATOR;
 	public static String ZOOKEEPER_TREE_OPERATIONS_ROOT = "/operations";
 	public static String ZOOKEEPER_TREE_STATE_ROOT = "/state"; 

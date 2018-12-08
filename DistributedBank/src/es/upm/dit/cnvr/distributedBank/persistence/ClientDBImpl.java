@@ -1,5 +1,6 @@
 package es.upm.dit.cnvr.distributedBank.persistence;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -44,6 +45,16 @@ public class ClientDBImpl implements ClientDB {
 			}
 		}
 		return null;
+	}
+	
+	@Override
+	public ArrayList<BankClient> readAll() {
+		ArrayList<BankClient> clientList = new ArrayList<BankClient>();
+		for (Entry <Integer, BankClient>  entry : database.entrySet()) {
+			BankClient c = entry.getValue();
+			clientList.add(c);
+		}
+		return clientList;
 	}
 
 	@Override
