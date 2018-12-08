@@ -174,7 +174,7 @@ public class ClusterManager {
 		}
 	}
 
-	private synchronized ArrayList<Integer> getZnodeList() {
+	public synchronized ArrayList<Integer> getZnodeList() {
 		Stat s = null;
 		try {
 			s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
