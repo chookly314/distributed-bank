@@ -24,3 +24,15 @@ A Docker compose file is included to create a local Zookeeper cluster. From the 
 docker-compose -f zookeeper-compose.yaml up
 ```
 This will create three containerized Zookeeper nodes, listening on ports 2181, 2182 and 2183.
+
+# How to execute
+
+1. Start the Zk cluster.
+
+2. Run "start.sh".
+
+# Important notes
+
+* The project directory structure should be the same as here.
+
+* Support for macOS and Linux only.
