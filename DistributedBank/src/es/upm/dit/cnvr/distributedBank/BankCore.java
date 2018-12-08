@@ -6,6 +6,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
 import es.upm.dit.cnvr.distributedBank.cluster.ClusterManager;
+import es.upm.dit.cnvr.distributedBank.persistence.*;
 
 public class BankCore {
 	
@@ -33,7 +34,17 @@ public class BankCore {
 					String.format("Error creating the session between the UpdateManager and Zookeeper", e.toString()));
 		}
 		
-		UpdateManager updatemanager = new UpdateManager(this, zk);
+		ClusterManager clustermanager = null;
+		try {
+			clustermanager = new ClusterManager(zk);
+		} catch (Exception e) {
+			logger.error("Can't create Cluster Manager");
+		}
+		
+		//Falta pasarle la base de datos, que no se como vamos a inicializarla. Habrá que modificar esto
+		ClientDB database = new ClientDBImpl();
+		
+		UpdateManager updatemanager = new UpdateManager(this, zk, clustermanager, database);
 	}
 	
 	public static void main(String[] args) {
