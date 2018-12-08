@@ -501,14 +501,14 @@ public class ClusterManager {
 
 		if (lastContactedProcess.equals("")) {
 			if (znodeListState.size() != 0) {
-				lastContactedProcess = znodeListState.get(0);
+				lastContactedProcess = getLowestStateIdZnode(znodeListState);
 				synchronizeWithProcess(lastContactedProcess);
 			}
 		} else {
-			if ((znodeListState.size() != 0) && (znodeListState.get(0).equals(lastContactedProcess))) {
+			if ((znodeListState.size() != 0) && (getLowestStateIdZnode(znodeListState).equals(lastContactedProcess))) {
 				return;
-			} else if ((znodeListState.size() != 0) && !(znodeListState.get(0).equals(lastContactedProcess))) {
-				lastContactedProcess = znodeListState.get(0);
+			} else if ((znodeListState.size() != 0) && !(getLowestStateIdZnode(znodeListState).equals(lastContactedProcess))) {
+				lastContactedProcess = getLowestStateIdZnode(znodeListState);
 				synchronizeWithProcess(lastContactedProcess);
 			} else {
 				// This should mean that znodeStateList is empty
@@ -519,6 +519,16 @@ public class ClusterManager {
 
 	}
 
+	private synchronized String getLowestStateIdZnode(List<String> znodes) {
+		String lowest = znodes.get(0);
+		for (String znode : znodes) {
+			if (znode.compareTo(lowest) < 0) {
+				lowest = znode;
+			}
+		}
+		return lowest;
+	}
+	
 	private synchronized void createNewProcess() {
 		String command = ConfigurationParameters.SERVER_CREATION_MACOS;
 		StringBuffer output = new StringBuffer();
