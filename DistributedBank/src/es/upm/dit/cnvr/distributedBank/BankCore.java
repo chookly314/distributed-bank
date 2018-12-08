@@ -151,10 +151,37 @@ public class BankCore {
 	}
 	
 	public static void main(String[] args) {
-		BasicConfigurator.configure();
-		BankCore bankcore = new BankCore();
-	
+        String hostOS = System.getProperty("os.name");
+        // Guess the OS
+        // + 0: macOS
+        // +1: Linux
+        int os = -1;
+        if (hostOS.contains("Mac")) {
+        	os = 0;
+        } else {
+        	//TODO refine this to be sure that we are on Linux here
+        	os = 1;
+        }
 		
+		BasicConfigurator.configure();
+		// Used when new processes need to be created
+		if (args.length != 1) {
+			logger.error("You should pass your working directory as paramerer. Example: java -cp ... app.jar /home/user. Exiting...");
+			System.exit(1);
+		} else {
+			if (os == 0) {
+				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
+				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_MAC + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + ConfigurationParameters.SERVER_CREATION_SUFIX_MAC;
+				logger.info("Host OS is macOS.");
+			} if (os == 1) {
+				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
+				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX;
+				logger.info("Host OS is Linux.");
+			}
+			logger.info(String.format("Working directory is %s", ConfigurationParameters.PROJECT_WORKING_DIRECTORY));
+			logger.info(String.format("Server creation command will be: %s", ConfigurationParameters.SERVER_CREATION));			
+		}
+		BankCore bankcore = new BankCore();
 	}
 	
 	

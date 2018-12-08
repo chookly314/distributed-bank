@@ -5,5 +5,6 @@
 	<classpathentry kind="lib" path="/Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/JarLibraries/commons-lang3-3.5.jar"/>
 	<classpathentry kind="lib" path="/Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/JarLibraries/log4j-1.2.17.jar"/>
 	<classpathentry kind="lib" path="/Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/JarLibraries/zookeeper-3.4.13.jar"/>
+	<classpathentry kind="lib" path="/Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/JarLibraries/slf4j-api-1.7.25.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

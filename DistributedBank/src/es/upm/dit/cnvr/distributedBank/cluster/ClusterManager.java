@@ -107,38 +107,10 @@ public class ClusterManager {
 				} else {
 					// Create the socket and add a node to /state to tell the leader to contact me
 					// to synchronize the state
+					logger.info("New process started. Going to create a socket...");
 					followerStartUp();
 				}
 			}
-
-//			// If I am the leader, check the servers number
-//			if (znodeId == leader) {
-//				if (znodeListMembers.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
-//					logger.info(String.format("The cluster has %s servers, as expected.", znodeListMembers.size()));
-//				} else {
-//					// This case means that the number of servers is lower than expected and that we
-//					// are in one
-//					// of the following two options:
-//					// -> First process created in the system
-//					// -> Every other process has died and this is the first one living. In this
-//					// case, proceed as in the previous option, because processes are created one by
-//					// one.
-//					bankCore.setIsRestoring(true);
-//					pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
-//					setUpNewServer();
-//				}
-//			} else {
-//				// Get the current system state
-//				byte[] databaseState = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false,
-//						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false));
-//				DBConn.createDatabase(databaseState);
-//
-//				// Remove /state znode
-//				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, -1);
-//
-//				logger.info("This process was properly initialized and is also synced now.");
-//			}
-
 		}
 	}
 
@@ -169,6 +141,7 @@ public class ClusterManager {
 					+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
 			logger.debug(String.format("Created zNode member id: %s", znodeIDString));
 			znodeId = Integer.valueOf(znodeIDString);
+			// Set a watcher
 			zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember);
 		} catch (KeeperException e) {
 			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: %s",
@@ -537,12 +510,13 @@ public class ClusterManager {
 	}
 	
 	private synchronized void createNewProcess() {
-		String command = ConfigurationParameters.SERVER_CREATION_LINUX;
+		String command = ConfigurationParameters.SERVER_CREATION;
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
 			p = Runtime.getRuntime().exec(command);
 			p.waitFor();
+			logger.debug("New terminal should pop up.");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String line = "";
 			while ((line = reader.readLine()) != null) {
@@ -551,7 +525,7 @@ public class ClusterManager {
 		} catch (Exception e) {
 			logger.error(String.format("Could not create a new process. Error: %s", e));
 		}
-		logger.info("Created a znode in /state with the dump of the database. New process launched.");
+		logger.info("New process launched triggered.");
 	}
 
 	// *** Getters ***
