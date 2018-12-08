@@ -36,7 +36,7 @@ public class BankCore {
 		
 		ClusterManager clustermanager = null;
 		try {
-			clustermanager = new ClusterManager(zk);
+			clustermanager = new ClusterManager(zk, this);
 		} catch (Exception e) {
 			logger.error("Can't create Cluster Manager");
 		}
@@ -57,6 +57,13 @@ public class BankCore {
 		return this.leader;
 	}
 	
+	public synchronized boolean isUpdating() {
+		return updating;
+	}
+	
+	public synchronized void setIsLeader(boolean leader) {
+		this.leader = leader;
+	}
 	
 	// *** Watchers ***
 
@@ -66,5 +73,6 @@ public class BankCore {
 			notify();
 		}
 	};
+	
 	
 }

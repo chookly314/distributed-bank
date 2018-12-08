@@ -108,33 +108,33 @@ public class ClusterManager {
 				}
 			}
 
-			// If I am the leader, check the servers number
-			if (znodeId == leader) {
-				if (znodeListMembers.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
-					logger.info(String.format("The cluster has {} servers, as expected.", znodeListMembers.size()));
-				} else {
-					// This case means that the number of servers is lower than expected and that we
-					// are in one
-					// of the following two options:
-					// -> First process created in the system
-					// -> Every other process has died and this is the first one living. In this
-					// case, proceed as in the previous option, because processes are created one by
-					// one.
-					bankCore.setIsRestoring(true);
-					pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
-					setUpNewServer();
-				}
-			} else {
-				// Get the current system state
-				byte[] databaseState = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false,
-						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false));
-				DBConn.createDatabase(databaseState);
-
-				// Remove /state znode
-				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, -1);
-
-				logger.info("This process was properly initialized and is also synced now.");
-			}
+//			// If I am the leader, check the servers number
+//			if (znodeId == leader) {
+//				if (znodeListMembers.size() == ConfigurationParameters.CLUSTER_GOAL_SIZE) {
+//					logger.info(String.format("The cluster has {} servers, as expected.", znodeListMembers.size()));
+//				} else {
+//					// This case means that the number of servers is lower than expected and that we
+//					// are in one
+//					// of the following two options:
+//					// -> First process created in the system
+//					// -> Every other process has died and this is the first one living. In this
+//					// case, proceed as in the previous option, because processes are created one by
+//					// one.
+//					bankCore.setIsRestoring(true);
+//					pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
+//					setUpNewServer();
+//				}
+//			} else {
+//				// Get the current system state
+//				byte[] databaseState = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false,
+//						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, false));
+//				DBConn.createDatabase(databaseState);
+//
+//				// Remove /state znode
+//				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_STATE_PATH, -1);
+//
+//				logger.info("This process was properly initialized and is also synced now.");
+//			}
 
 		}
 	}
@@ -277,8 +277,9 @@ public class ClusterManager {
 			// Get current leader
 			leader = getLowestId(znodeListMembers);
 			if (znodeId == leader) {
-				// TODO setIsLeader has to be synchronized
 				bankCore.setIsLeader(true);
+			} else {
+				bankCore.setIsLeader(false);
 			}
 
 			// A leader won't check again if he is the leader, so we set a /state watcher
@@ -577,7 +578,7 @@ public class ClusterManager {
 
 				ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
 				SocketsOperations response = (SocketsOperations) is.readObject();
-				logger.debug(String.format("Follower answer after receiving the database is: {}", response));
+				logger.debug(String.format("Follower answer after receiving the database is: {}", response.getResponse()));
 				socket.close();
 
 			} else {
