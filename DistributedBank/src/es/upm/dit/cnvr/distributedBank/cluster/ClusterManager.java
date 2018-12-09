@@ -653,11 +653,14 @@ public class ClusterManager {
 
 				if (dumpCompletedOk) {
 					addToMembers();
+					zk.delete(znodeIdState, -1);
+					logger.info("znode from state deleted");
 					break;
 				}
 			}
 		} catch (Exception e) {
 			logger.error(String.format("Something happened while syncing with the leader. Killing myself...", e));
+			System.exit(1);
 		} finally {
 			if (dumpCompletedOk == false) {
 				logger.debug("Killing myself because I was not able to synchronize with the leader.");

@@ -20,8 +20,10 @@ public  class ConfigurationParameters {
 	public static String PROJECT_WORKING_DIRECTORY = "";
 	public static String PROJECT_START_SCRIPT = "start.sh";
 	// - macOS
-	public static String SERVER_CREATION_PREFIX_MAC = "osascript -e 'tell app \"Terminal\" to do script \"";// + PROJECT_WORKING_DIRECTORY + PROJECT_START_SCRIPT + "\"'";
-	public static String SERVER_CREATION_SUFIX_MAC = "\"'";
+//	public static String SERVER_CREATION_PREFIX_MAC = "osascript -e 'tell app \"Terminal\" to do script \"";
+//	public static String SERVER_CREATION_SUFIX_MAC = "\"'";
+	public static String SERVER_CREATION_PREFIX_MAC = "open -a Terminal ";
+	public static String SERVER_CREATION_SUFIX_MAC = "";
 	// - Linux
 	public static String SERVER_CREATION_PREFIX_LINUX = "gnome-terminal -x sh -c \"";
 	public static String SERVER_CREATION_SUFIX_LINUX = "\"";

@@ -99,18 +99,7 @@ public class UpdateManager {
 			logger.info(operation.toString());
 			
 			byte[] data = SerializationUtils.serialize(operation);
-			/*byte[] data = new byte[0];
-			try {
-				ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-				ObjectOutputStream out = new ObjectOutputStream(byteOut);
-				out.writeObject(operation);
-				out.flush();
-				data = byteOut.toByteArray();
-				logger.info("Serializing operation");
-			} catch (Exception e) {
-				logger.error("Error serializing operation "+e.toString());
-			}
-			*/
+
 			try {
 				Stat s = zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT,
 						data, -1);
@@ -225,16 +214,19 @@ public class UpdateManager {
 	public void persistOperation(Operation operation) {
 		switch (operation.getOperation()) {
 		case CREATE:
-			database.create(operation.getClient());
+			ServiceStatusEnum responseCreate = database.create(operation.getClient());
+			logger.info(String.format("Response: %s", responseCreate));
 			break;
 		case READ:
 			logger.error("Getting read operation in UpdateManager");
 			break;
 		case UPDATE:
-			database.update(operation.getAccountNumber(), operation.getBalance());
+			ServiceStatusEnum responseUpdate = database.update(operation.getAccountNumber(), operation.getBalance());
+			logger.info(String.format("Response: %s", responseUpdate));
 			break;
 		case DELETE:
-			database.delete(operation.getAccountNumber());
+			ServiceStatusEnum responseDelete = database.delete(operation.getAccountNumber());
+			logger.info(String.format("Response: %s", responseDelete));
 			break;
 		}
 	}
