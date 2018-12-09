@@ -3,8 +3,9 @@ package es.upm.dit.cnvr.distributedBank;
 public  class ConfigurationParameters {
 	
 	public static int  CLUSTER_GOAL_SIZE = 2;
-	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 2000; //millis
-	public static int ZOOKEEPER_SESSION_TIMEOUT = 1500;
+	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 500; //millis
+	// This value is not taken into account, the cluster uses its own timeout
+	public static int ZOOKEEPER_SESSION_TIMEOUT = 4000;
 	public static String ZOOKEEPER_TREE_SEPARATOR = "-";
 	public static String ZOOKEEPER_TREE_LOCKS_ROOT = "/locks";
 	public static String ZOOKEEPER_TREE_LOCKS_PREFIX = "/lock" + ZOOKEEPER_TREE_SEPARATOR;

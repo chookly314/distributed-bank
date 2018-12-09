@@ -96,7 +96,8 @@ public class ClusterManager {
 				leaderElection();
 //				verifySystemState();
 			} else {
-				if (znodeListMembers.size() >= ConfigurationParameters.CLUSTER_GOAL_SIZE) {
+				// We get the list again just in case something weird happened
+				if (zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false, zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false)).size() >= ConfigurationParameters.CLUSTER_GOAL_SIZE) {
 					logger.debug("The cluster already has its goal servers number. Killing myself.");
 					System.exit(1);
 				} else {
@@ -158,7 +159,7 @@ public class ClusterManager {
 		} catch (KeeperException | InterruptedException e) {
 			logger.error(String.format("Error getting the members tree: %s", e.toString()));
 		}
-
+		
 		if (s != null) {
 			List<String> znodeListString = null;
 			try {
@@ -217,20 +218,20 @@ public class ClusterManager {
 
 	// Only accessed by the leader
 	protected synchronized void verifySystemState() {
-		logger.info("Enter verifySystemState");
+//		logger.info("Enter verifySystemState");
 		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
-		logger.debug(String.format("Pending processes to start number is %d", pendingProcessesToStart));
+//		logger.debug(String.format("Pending processes to start number is %d", pendingProcessesToStart));
 		if (pendingProcessesToStart > 0) {
-			logger.debug("Going to set up a new server");
+//			logger.debug("Going to set up a new server");
 			setUpNewServer();
-		} else {
-			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is %s",
-					pendingProcessesToStart));
+		} else if (pendingProcessesToStart == 0) {
+//			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is %s",	pendingProcessesToStart));
+			
 			// Final state for the restoring process
 			// Remove pending processes, it there are any
 			for (String process : pendingLocksToRemove) {
 				try {
-					zk.delete(process, -1);
+					zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + "/" + process, -1);
 				} catch (InterruptedException e) {
 					logger.error(String.format("Problem removing pending lock %s. Error: %s", process, e));
 				} catch (KeeperException e) {
@@ -239,11 +240,13 @@ public class ClusterManager {
 			}
 			// Reset pending processes
 			pendingLocksToRemove = new ArrayList<String>();
-			logger.debug("Reseting pending locks to remove.");
+//			logger.debug("Reseting pending locks to remove.");
 
 			if (newLeaderElectedDuringUpdate) {
 				undoCurrentOperation();
 			}
+		} else {
+			logger.error("There are more processes than expected.");
 		}
 	}
 
@@ -310,7 +313,23 @@ public class ClusterManager {
 	}
 
 	private synchronized void setUpNewServer() {
-		createNewProcess();
+		String command = ConfigurationParameters.SERVER_CREATION;
+		StringBuffer output = new StringBuffer();
+		Process p;
+		try {
+			logger.debug(String.format("Executing command %s to create a new process.", command));
+			p = Runtime.getRuntime().exec(command);
+//			p.waitFor();
+			logger.debug("New terminal should pop up.");
+			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			String line = "";
+			while ((line = reader.readLine()) != null) {
+				output.append(line + "\n");
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Could not create a new process. Error: %s", e));
+		}
+		logger.info("New process launched triggered.");
 	}
 
 	private synchronized void handleZnodesUpdate() throws KeeperException, InterruptedException {
@@ -349,7 +368,9 @@ public class ClusterManager {
 				updateHandlePending = false;
 				for (String id : oldZnodeListString) {
 					if (!(znodeListMembersString.contains(id))) {
-						pendingLocksToRemove.add(id);
+						if (bankCore.isUpdating()) {
+							pendingLocksToRemove.add(id);
+						}
 					}
 				}
 				znodeListMembers = updatedZnodeList;
@@ -506,25 +527,6 @@ public class ClusterManager {
 		return lowest;
 	}
 
-	private synchronized void createNewProcess() {
-		String command = ConfigurationParameters.SERVER_CREATION;
-		StringBuffer output = new StringBuffer();
-		Process p;
-		try {
-			logger.debug(String.format("Executing command %s to create a new process.", command));
-			p = Runtime.getRuntime().exec(command);
-//			p.waitFor();
-			logger.debug("New terminal should pop up.");
-			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			String line = "";
-			while ((line = reader.readLine()) != null) {
-				output.append(line + "\n");
-			}
-		} catch (Exception e) {
-			logger.error(String.format("Could not create a new process. Error: %s", e));
-		}
-		logger.info("New process launched triggered.");
-	}
 
 	// *** Getters ***
 
