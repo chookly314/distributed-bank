@@ -140,8 +140,8 @@ public class ClusterManager {
 					+ ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, "");
 			logger.debug(String.format("Created zNode member id: %s", znodeIDString));
 			znodeId = Integer.valueOf(znodeIDString);
-			// Set a watcher
-			zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember);
+			// Set a watcher - no need: this method is always called after getZnodeList
+//			zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, watcherMember);				
 		} catch (KeeperException e) {
 			logger.error(String.format("Error creating a znode in members. Exiting to avoid inconsistencies: %s",
 					e.toString()));
@@ -251,11 +251,15 @@ public class ClusterManager {
 
 	private synchronized void leaderElection() {
 		try {
+			logger.debug("Electing new leader.");
 			Stat s = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT, false);
-
+			
 			// Get current leader
 			leader = getLowestId(znodeListMembers);
+			logger.debug(String.format("Znodelist is %s", znodeListMembers.toString()));
+			logger.debug(String.format("Leader should be %d, and I am %d", leader, znodeId));
 			if (znodeId == leader) {
+				logger.info("I am the new leader!");
 				bankCore.setIsLeader(true);
 			} else {
 				bankCore.setIsLeader(false);
@@ -362,6 +366,7 @@ public class ClusterManager {
 				}
 				verifySystemState();
 			} else {
+				znodeListMembers = updatedZnodeList;
 				leaderElection();
 				updateHandlePending = false;
 				if (znodeId == leader) {
