@@ -29,7 +29,7 @@ public class UpdateManager {
 	private ClusterManager cm;
 	private ClientDB database;
 
-	private final Object lock = new Object();
+	private final static Object lock = new Object();
 
 	public UpdateManager(BankCore bankcore, ZooKeeper zk, ClusterManager cm, ClientDB database) {
 
@@ -185,7 +185,7 @@ public class UpdateManager {
 				logger.error("Error getting operation from zookeeper:");
 				logger.error(e.toString());
 			}
-			logger.debug("Point 0");
+			//logger.debug("Point 0");
 
 			// Delete my lock
 			try {
@@ -196,18 +196,20 @@ public class UpdateManager {
 			} catch (Exception e) {
 				logger.error("Exception deleting lock");
 			}
-			logger.debug("Point A");
+			//logger.debug("Point A");
 			List<String> locks = this.getLocks();
-			logger.debug("Point B");
+			//logger.debug("Point B");
 			while (!locks.isEmpty()) {
 				//synchronized (lock) {
+				/*
 					try {
 						logger.debug("Waiting for the following locks to be removed: "+locks.toString());
-						lock.wait();
+						//lock.wait(5000);
 						logger.debug("Nofify received. Proceeding");
 					} catch (InterruptedException e) {
 						logger.error("Interrupted Exception in wait");
 					}
+					*/
 					locks = this.getLocks();
 				//}
 			}
@@ -276,7 +278,7 @@ public class UpdateManager {
 //		notify();
 	}
 
-	public List<String> getLocks() {
+	public synchronized List<String> getLocks() {
 		List<String> locks = null;
 		try {
 			locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, locksWatcher);
