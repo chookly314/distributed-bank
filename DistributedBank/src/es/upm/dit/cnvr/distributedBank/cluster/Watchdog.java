@@ -8,8 +8,29 @@ public class Watchdog implements Runnable {
 	
 	private static Logger logger = Logger.getLogger(Watchdog.class);
 	
+	private static ClusterManager cm;
+	
+	public  Watchdog(ClusterManager cm) {
+		this.cm = cm;
+		logger.debug("Watchdog instantiated.");
+	}
+	
 	@Override
 	public void run() {
+		logger.debug("Watchdog triggered.");
+		while (true) {
+			cm.verifySystemState();
+			try {
+				Thread.sleep(ConfigurationParameters.CLUSTER_WATCHDOG_SLEEP_CYCLE);
+			} catch (InterruptedException e) {
+				logger.error(String.format("Interrupted exception while sleeping %s", e));
+			}
+		}
+		
+		
+		
+		// Old implementation
+		/*
 		ClusterManager cm = new ClusterManager();
 		int pendingProcessesToStart = cm.getPendingProcessesToStart();
 		int version = cm.getNodeCreationConfirmed();
@@ -43,6 +64,7 @@ public class Watchdog implements Runnable {
 				lastTry = false;
 			}
 		}
+		*/
 
 	}
 

@@ -1,17 +1,14 @@
 package es.upm.dit.cnvr.distributedBank.cluster;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -53,10 +50,9 @@ public class ClusterManager {
 	// This variable will be used only by the watchdog
 	private static int nodeCreationConfirmed = 0;
 	// Watchdog instance, only used by the leader
-//	private static Watchdog watchdog = null;
+	private static Watchdog watchdog = null;
 	// This variable will prevent the system from counting the same znode creation
 	// twice
-//	boolean memberCreationReceived = false;
 	// BankCore instance used to notify when the system is restoring
 	private BankCore bankCore;
 	// List of servers killed locks to remove once the system fully restored. Full
@@ -98,7 +94,7 @@ public class ClusterManager {
 				addToMembers();
 				znodeListMembers = getZnodeList();
 				leaderElection();
-				verifySystemState();
+//				verifySystemState();
 			} else {
 				if (znodeListMembers.size() >= ConfigurationParameters.CLUSTER_GOAL_SIZE) {
 					logger.debug("The cluster already has its goal servers number. Killing myself.");
@@ -220,10 +216,12 @@ public class ClusterManager {
 	}
 
 	// Only accessed by the leader
-	private synchronized void verifySystemState() {
+	protected synchronized void verifySystemState() {
 		logger.info("Enter verifySystemState");
 		pendingProcessesToStart = ConfigurationParameters.CLUSTER_GOAL_SIZE - znodeListMembers.size();
+		logger.debug(String.format("Pending processes to start number is %d", pendingProcessesToStart));
 		if (pendingProcessesToStart > 0) {
+			logger.debug("Going to set up a new server");
 			setUpNewServer();
 		} else {
 			logger.debug(String.format("Restoring process finished. PendingProcessesToStart is %s",
@@ -261,27 +259,17 @@ public class ClusterManager {
 			if (znodeId == leader) {
 				logger.info("I am the new leader!");
 				bankCore.setIsLeader(true);
+				// Create the watchdog thread 
+				watchdog = new Watchdog(this);
+				Thread t = new Thread(watchdog);
+				t.start();
+				logger.debug("New thread with watchdog created.");
+				// A leader won't check again if he is the leader, so we set a /state watcher
+				// here and update the znodes list
+				znodeListState = getZnodeStateList();
 			} else {
 				bankCore.setIsLeader(false);
 			}
-
-			// A leader won't check again if he is the leader, so we set a /state watcher
-			// here and update the znodes list
-			znodeListState = getZnodeStateList();
-
-//			// The previous method returns something with the format: member-0000000001
-//			leaderString = leaderString.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.substring(1,
-//					ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX.length()), "");
-//			logger.info(String.format("The current cluster leader is %s.", leaderString));
-//			leader = Integer.valueOf(leaderString);
-//			if (znodeId == leader) {
-//				if (watchdog == null) {
-//					watchdog = new Watchdog();
-//					Thread watchdogThread = new Thread(watchdog, "Watchdog thread");
-//					watchdogThread.start();
-//					logger.debug("Watchdog thread started.");
-//				}
-//			}
 		} catch (Exception e) {
 			logger.error(String.format("Error electing leader: %s", e.toString()));
 		}
@@ -364,7 +352,8 @@ public class ClusterManager {
 						pendingLocksToRemove.add(id);
 					}
 				}
-				verifySystemState();
+				znodeListMembers = updatedZnodeList;
+//				verifySystemState();
 			} else {
 				znodeListMembers = updatedZnodeList;
 				leaderElection();
@@ -477,13 +466,13 @@ public class ClusterManager {
 
 	// Only accessed by the leader
 	private synchronized void handleStateUpdate() {
+		logger.debug("Handling znodeStateUpdate...");
 		znodeListState = getZnodeStateList();
 		// This method should be called only by the leader, but verify it just in case
 		if (leader != znodeId) {
 			return;
 		}
 
-		logger.debug("Handling znodeStateUpdate...");
 
 		if (lastContactedProcess.equals("")) {
 			if (znodeListState.size() != 0) {
@@ -501,7 +490,7 @@ public class ClusterManager {
 			} else {
 				// This should mean that znodeStateList is empty
 				lastContactedProcess = "";
-				verifySystemState();
+//				verifySystemState();
 			}
 		}
 
@@ -522,7 +511,7 @@ public class ClusterManager {
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
-			logger.info(String.format("Executing command %s to create a new process.", command));
+			logger.debug(String.format("Executing command %s to create a new process.", command));
 			p = Runtime.getRuntime().exec(command);
 //			p.waitFor();
 			logger.debug("New terminal should pop up.");
@@ -539,19 +528,19 @@ public class ClusterManager {
 
 	// *** Getters ***
 
-	public int getPendingProcessesToStart() {
+	public synchronized int getPendingProcessesToStart() {
 		return pendingProcessesToStart;
 	}
 
-	public int getZnodeId() {
+	public synchronized int getZnodeId() {
 		return znodeId;
 	}
 
-	public int getLeader() {
+	public synchronized int getLeader() {
 		return leader;
 	}
 
-	protected int getNodeCreationConfirmed() {
+	protected synchronized int getNodeCreationConfirmed() {
 		return nodeCreationConfirmed;
 	}
 
