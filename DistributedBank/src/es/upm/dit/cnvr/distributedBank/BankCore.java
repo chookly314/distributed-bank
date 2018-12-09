@@ -78,6 +78,7 @@ public class BankCore {
 					client = readClient(sc);
 					//Pasar a updateManager para crear este cliente.
 					updatemanager.processOperation(new Operation(OperationEnum.CREATE, client));
+					logger.info("End of creation, breaking case.");
 					break;
 				case 2: // Read client
 					
@@ -130,7 +131,7 @@ public class BankCore {
 						sc.next();
 					}
 					break;
-				case 5: //listar todos
+				case 5: // List all
 					for (BankClient user : clientDB.readAll()) {
 						System.out.println(user.toString());
 					}
