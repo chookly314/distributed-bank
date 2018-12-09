@@ -11,6 +11,7 @@ import java.util.List;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -128,11 +129,22 @@ public class UpdateManager {
 			}
 
 			// logger.info("victoria");
-
+			// Uncomment the following block to have control over timing for debugging
+            /*
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			*/ 
+			
 			// Delete my own lock (leader)
 			try {
 				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
 						+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getZnodeId()), -1);
+			    logger.debug("Deleting my lock (leader's): "+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
+						+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getZnodeId()));
 			} catch (Exception e) {
 				logger.error("Exception deleting lock");
 			}
@@ -140,6 +152,7 @@ public class UpdateManager {
 			// Remove operation
 			try {
 				Stat s = zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, new byte[0], -1);
+				logger.debug("Deleting operation");
 			} catch (Exception e) {
 				logger.error("Error emptying operation znode");
 				logger.error(e.toString());
@@ -162,58 +175,79 @@ public class UpdateManager {
 			Operation operation = null;
 			// Connect to ZooKeeper and get the operation
 			try {
-				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher,
+				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false,
 						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
 
-				// operation = SerializationUtils.deserialize(data);
-
-				/*
-				 * Object obj = null; ByteArrayInputStream bis = null; ObjectInputStream ois =
-				 * null; bis = new ByteArrayInputStream(data); ois = new ObjectInputStream(bis);
-				 * obj = ois.readObject(); operation = (Operation) obj; bis.close();
-				 * 
-				 */
+				operation = SerializationUtils.deserialize(data);
+				logger.debug("Got operation from Zookeeper: "+operation.toString());
+				
 			} catch (Exception e) {
 				logger.error("Error getting operation from zookeeper:");
 				logger.error(e.toString());
-			} /*
-				 * catch (ClassNotFoundException e) {
-				 * logger.error(String.format("Could not cast from object to HashMap. Error: {}"
-				 * , e)); } catch (IOException e) {
-				 * logger.error(String.format("Could not read input stram. Error: {}", e)); }
-				 */
+			}
+			logger.debug("Point 0");
 
 			// Delete my lock
 			try {
 				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
 						+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getZnodeId()), -1);
+				logger.debug("Deleting lock: "+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
+						+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getZnodeId()));
 			} catch (Exception e) {
 				logger.error("Exception deleting lock");
 			}
-
+			logger.debug("Point A");
 			List<String> locks = this.getLocks();
+			logger.debug("Point B");
 			while (!locks.isEmpty()) {
-				try {
-					wait();
-				} catch (InterruptedException e) {
-					logger.error("Interrupted Exception in wait");
-				}
-				locks = this.getLocks();
+				//synchronized (lock) {
+					try {
+						logger.debug("Waiting for the following locks to be removed: "+locks.toString());
+						lock.wait();
+						logger.debug("Nofify received. Proceeding");
+					} catch (InterruptedException e) {
+						logger.error("Interrupted Exception in wait");
+					}
+					locks = this.getLocks();
+				//}
 			}
-
+			
+			logger.debug("Every node got the operation, persisting the change");
+			
 			// Every node got the operation, persist it
 			persistOperation(operation);
+
+			//Set a new watcher on the operations node
+			try {
+				zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher);
+			} catch (Exception e) {
+				logger.error(e.toString());
+			}
+			
+			
 			bankcore.updating = false;
 
 		} else {
-			RuntimeException e = new RuntimeException("Operation node changed while on another update");
-			logger.error(e.toString());
-			throw e;
+			try {
+				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher,
+						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
+				logger.info("Contents of operation: "+data.toString());
+				if (data.equals(new byte[0])) {
+					logger.info("Operation node was deleted and triggered a watcher. Setting a new watcher");
+				} else {
+					RuntimeException e = new RuntimeException("Operation node changed while on another update");
+					logger.error(e.toString());
+					throw e;
+				}
+			} catch (Exception e) {
+				logger.error(e.toString());
+			}
 		}
 
 	}
 
 	public void persistOperation(Operation operation) {
+		logger.info("Persisting operation");
 		switch (operation.getOperation()) {
 		case CREATE:
 			ServiceStatusEnum responseCreate = database.create(operation.getClient());
@@ -246,6 +280,7 @@ public class UpdateManager {
 		List<String> locks = null;
 		try {
 			locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, locksWatcher);
+			logger.debug("Current locks are: "+locks.toString());
 		} catch (Exception e) {
 			logger.error("Error in getLocks");
 			// Stop everything. Null could mean lack of locks and generate inconsistencies
@@ -259,6 +294,7 @@ public class UpdateManager {
 			return false;
 		} else if (locks.get(0).equals(
 				ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX_NO_SLASH + Integer.toString(cm.getLeader()))) {
+			logger.debug("Locks directory contains only leader's "+locks.get(0).toString());
 			return true;
 		} else {
 			logger.error("There is only one lock and it is not the leader's:");
@@ -272,13 +308,14 @@ public class UpdateManager {
 	// Notified of changes in the operations znode
 	private Watcher operationsWatcher = new Watcher() {
 		public void process(WatchedEvent event) {
+			logger.debug("Triggered operationsWatcher");
 			operationsZnodeChanged();
 		}
 	};
 
 	private Watcher locksWatcher = new Watcher() {
 		public void process(WatchedEvent event) {
-			logger.info("Number of locks changed. Watcher triggered.");
+			logger.debug("Number of locks changed. Watcher triggered.");
 			numberOfLocksChanged();
 		}
 	};

@@ -231,7 +231,8 @@ public class ClusterManager {
 			// Remove pending processes, it there are any
 			for (String process : pendingLocksToRemove) {
 				try {
-					zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + "/" + process, -1);
+					zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT + ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + 
+							process.replace(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_PREFIX, ""), -1);
 				} catch (InterruptedException e) {
 					logger.error(String.format("Problem removing pending lock %s. Error: %s", process, e));
 				} catch (KeeperException e) {
