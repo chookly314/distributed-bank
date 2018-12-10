@@ -3,7 +3,7 @@ package es.upm.dit.cnvr.distributedBank;
 public  class ConfigurationParameters {
 	
 	public static int  CLUSTER_GOAL_SIZE = 2;
-	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 500; //millis
+	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 5000; //millis
 	// This value is not taken into account, the cluster uses its own timeout
 	public static int ZOOKEEPER_SESSION_TIMEOUT = 4000;
 	public static String ZOOKEEPER_TREE_SEPARATOR = "-";

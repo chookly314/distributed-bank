@@ -130,14 +130,14 @@ public class UpdateManager {
 
 			// logger.info("victoria");
 			// Uncomment the following block to have control over timing for debugging
-            /*
+            
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			*/ 
+			 
 			
 			// Delete my own lock (leader)
 			try {

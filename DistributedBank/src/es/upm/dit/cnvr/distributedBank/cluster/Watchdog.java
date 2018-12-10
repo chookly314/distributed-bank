@@ -19,12 +19,12 @@ public class Watchdog implements Runnable {
 	public void run() {
 		logger.debug("Watchdog triggered.");
 		while (true) {
-			cm.verifySystemState();
 			try {
 				Thread.sleep(ConfigurationParameters.CLUSTER_WATCHDOG_SLEEP_CYCLE);
 			} catch (InterruptedException e) {
 				logger.error(String.format("Interrupted exception while sleeping %s", e));
 			}
+			cm.verifySystemState();
 		}
 		
 		
