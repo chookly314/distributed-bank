@@ -144,7 +144,7 @@ public class BankCore {
 			} catch (Exception e) {
 				logger.error("Error reading data: "+e.toString());
 			}
-
+			updating = false;
 		}
 
 		sc.close();

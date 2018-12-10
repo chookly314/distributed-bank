@@ -79,8 +79,9 @@ public class UpdateManager {
 	public void processOperation(Operation operation) {
 		if (bankcore.isLeader()) {
 			logger.debug("Got processOperation request");
+			bankcore.updating = true;
 			// Create a lock for every process
-			List<Integer> nodeList = cm.getZnodeList();
+			List<Integer> nodeList = cm.getZnodeList(false);
 			for (Integer item : nodeList) {
 				try {
 					String znodeIDString = zk.create(
@@ -172,6 +173,7 @@ public class UpdateManager {
 	private void operationsZnodeChanged() {
 		if (!bankcore.updating) {
 			bankcore.updating = true;
+			logger.info("BankCore updating TRUE!!!!");
 			Operation operation = null;
 			// Connect to ZooKeeper and get the operation
 			try {
@@ -187,6 +189,17 @@ public class UpdateManager {
 			}
 			//logger.debug("Point 0");
 
+			// Sleep for debugging
+			logger.debug("I am sleeping, KILL ME");
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+			//
+			
 			// Delete my lock
 			try {
 				zk.delete(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
