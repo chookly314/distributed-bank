@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -28,6 +29,7 @@ public class UpdateManager {
 	private BankCore bankcore;
 	private ClusterManager cm;
 	private ClientDB database;
+	private boolean cancelPendingOperation;
 
 	private final static Object lock = new Object();
 
@@ -37,6 +39,7 @@ public class UpdateManager {
 		this.zk = zk;
 		this.cm = cm;
 		this.database = database;
+		cancelPendingOperation = false;
 
 		logger.debug("Instantiating UpdateManager");
 
@@ -103,7 +106,9 @@ public class UpdateManager {
 
 			try {
 				Stat s = zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, data, -1);
-				logger.debug("Created operation znode");
+				logger.debug("Created operations znode");
+				Stat state = zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher);
+				logger.debug("Setting watcher in operations znode");
 			} catch (Exception e) {
 				logger.error("Error submitting operation znode");
 				logger.error(e.toString());
@@ -111,7 +116,7 @@ public class UpdateManager {
 
 			// Wait until all other nodes delete their lock
 			List<String> locks = this.getLocks();
-			while (!containsOnlyLeader(locks)) {
+			while ((!locks.isEmpty()) && (!containsOnlyLeader(locks))) {
 				synchronized (lock) {
 					try {
 						lock.wait();
@@ -127,18 +132,19 @@ public class UpdateManager {
 //				}
 				locks = this.getLocks();
 				logger.debug(String.format("/locks now is %s", locks.toString()));
+				logger.debug(locks.isEmpty());
 			}
 
-			// logger.info("victoria");
+			logger.info("victoria");
 			// Uncomment the following block to have control over timing for debugging
-            
+            /*
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			 
+			 */
 			
 			// Delete my own lock (leader)
 			try {
@@ -147,19 +153,30 @@ public class UpdateManager {
 			    logger.debug("Deleting my lock (leader's): "+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT
 						+ ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_PREFIX + Integer.toString(cm.getZnodeId()));
 			} catch (Exception e) {
-				logger.error("Exception deleting lock");
+				logger.info("While deleting lock: "+ e.toString());
 			}
 
 			// Remove operation
 			try {
-				Stat s = zk.setData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, new byte[0], -1);
-				logger.debug("Deleting operation");
+				logger.debug("Checking operation node in case it's been deleted");
+				byte[] currentOperationContent = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false,
+						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
+				logger.debug(currentOperationContent.toString());
+				//if (currentOperationContent.equals()) {
+				if (Arrays.equals(currentOperationContent, new byte[0])) {
+					logger.debug("Operation is empty. Aborting persist.");
+					cancelPendingOperation = true;
+				}
 			} catch (Exception e) {
-				logger.error("Error emptying operation znode");
-				logger.error(e.toString());
+				logger.info("Error emptying operation znode");
+				logger.info(e.toString());
 			}
+			
 
-			persistOperation(operation);
+			if (!cancelPendingOperation) {
+				persistOperation(operation);
+				cancelPendingOperation = false;
+			}
 			bankcore.updating = false;
 			return;
 
@@ -170,7 +187,7 @@ public class UpdateManager {
 	}
 	}
 
-	private void operationsZnodeChanged() {
+	private synchronized void operationsZnodeChanged() {
 		if (!bankcore.updating) {
 			bankcore.updating = true;
 			logger.info("BankCore updating TRUE!!!!");
@@ -188,7 +205,7 @@ public class UpdateManager {
 				logger.error(e.toString());
 			}
 			//logger.debug("Point 0");
-
+/*
 			// Sleep for debugging
 			logger.debug("I am sleeping, KILL ME");
 			try {
@@ -197,7 +214,7 @@ public class UpdateManager {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			
+		*/	
 			//
 			
 			// Delete my lock
@@ -230,7 +247,10 @@ public class UpdateManager {
 			logger.debug("Every node got the operation, persisting the change");
 			
 			// Every node got the operation, persist it
-			persistOperation(operation);
+			if (!cancelPendingOperation) {
+				persistOperation(operation);
+				cancelPendingOperation = false;
+			}
 
 			//Set a new watcher on the operations node
 			try {
@@ -241,18 +261,23 @@ public class UpdateManager {
 			
 			
 			bankcore.updating = false;
+			logger.info("BankCore updating FALSE!!!!");
 
 		} else {
 			try {
 				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher,
 						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
 				logger.info("Contents of operation: "+data.toString());
-				if (data.equals(new byte[0])) {
-					logger.info("Operation node was deleted and triggered a watcher. Setting a new watcher");
+				//if (data.equals(new byte[0])) {
+				  if (Arrays.equals(data, new byte[0])) {
+					logger.info("Operation node was deleted and triggered a watcher. Undoing operation");
+					cancelPendingOperation = true;
 				} else {
-					RuntimeException e = new RuntimeException("Operation node changed while on another update");
+					/*RuntimeException e = new RuntimeException("Operation node changed while on another update");
 					logger.error(e.toString());
 					throw e;
+					*/
+					logger.debug("Operation node changed while on another update");
 				}
 			} catch (Exception e) {
 				logger.error(e.toString());
@@ -312,8 +337,8 @@ public class UpdateManager {
 			logger.debug("Locks directory contains only leader's "+locks.get(0).toString());
 			return true;
 		} else {
-			logger.error("There is only one lock and it is not the leader's:");
-			logger.error(locks.get(0));
+			logger.debug("There is only one lock and it is not the leader's:");
+			logger.debug(locks.get(0));
 			return false;
 		}
 	}
@@ -330,7 +355,7 @@ public class UpdateManager {
 
 	private Watcher locksWatcher = new Watcher() {
 		public void process(WatchedEvent event) {
-			logger.debug("Number of locks changed. Watcher triggered.");
+			logger.debug("Triggered locksWatcher");
 			numberOfLocksChanged();
 		}
 	};
