@@ -164,10 +164,10 @@ public class UpdateManager {
 			return;
 
 		} else {
-			RuntimeException e = new RuntimeException("Calling processOperation on a non-leader node");
-			logger.error(e.toString());
-			throw e;
-		}
+
+				logger.info("Calling processOperation on a non-leader node");
+				
+	}
 	}
 
 	private void operationsZnodeChanged() {

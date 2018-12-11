@@ -5,7 +5,11 @@ import org.apache.log4j.Logger;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+
+
 import java.util.Scanner;
+
+
 
 import es.upm.dit.cnvr.distributedBank.cluster.ClusterManager;
 import es.upm.dit.cnvr.distributedBank.persistence.*;
@@ -77,8 +81,10 @@ public class BankCore {
 				case 1: // Create client
 					client = readClient(sc);
 					//Pasar a updateManager para crear este cliente.
+					if(client!=null) {
 					updatemanager.processOperation(new Operation(OperationEnum.CREATE, client));
 					logger.info("End of creation, breaking case.");
+					}
 					break;
 				case 2: // Read client
 					
@@ -151,7 +157,7 @@ public class BankCore {
 		
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) {	
         String hostOS = System.getProperty("os.name");
         // Guess the OS
         // + 0: macOS
@@ -163,8 +169,7 @@ public class BankCore {
         	//TODO refine this to be sure that we are on Linux here
         	os = 1;
         }
-		
-		BasicConfigurator.configure();
+        BasicConfigurator.configure();
 		// Used when new processes need to be created
 		if (args.length != 1) {
 			logger.error("You should pass your working directory as paramerer. Example: java -cp ... app.jar /home/user. Exiting...");
@@ -195,7 +200,7 @@ public class BankCore {
 		if (sc.hasNextInt()) {
 			accNumber = sc.nextInt();
 		} else {
-			System.out.println("The provised text provided is not an integer");
+			System.out.println("The text provided is not an integer");
 			sc.next();
 			return null;
 		}
@@ -207,7 +212,7 @@ public class BankCore {
 		if (sc.hasNextInt()) {
 			balance = sc.nextInt();
 		} else {
-			System.out.println("The provised text provided is not an integer");
+			System.out.println("The text provided is not an integer");
 			sc.next();
 			return null;
 		}
