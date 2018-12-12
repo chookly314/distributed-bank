@@ -205,7 +205,7 @@ public class UpdateManager {
 				logger.error(e.toString());
 			}
 			//logger.debug("Point 0");
-/*
+
 			// Sleep for debugging
 			logger.debug("I am sleeping, KILL ME");
 			try {
@@ -214,7 +214,7 @@ public class UpdateManager {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-		*/	
+			
 			//
 			
 			// Delete my lock
@@ -245,6 +245,24 @@ public class UpdateManager {
 			}
 			
 			logger.debug("Every node got the operation, persisting the change");
+			
+			
+			
+			// Check if operations node has been emptied, in case the watcher notification was missed
+			try {
+				logger.debug("Checking operation node in case it's been deleted");
+				byte[] currentOperationContent = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false,
+						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
+				logger.debug(currentOperationContent.toString());
+				//if (currentOperationContent.equals()) {
+				if (Arrays.equals(currentOperationContent, new byte[0])) {
+					logger.debug("Operation is empty. Aborting persist.");
+					cancelPendingOperation = true;
+				}
+			} catch (Exception e) {
+				logger.info("Error emptying operation znode");
+				logger.info(e.toString());
+			}
 			
 			// Every node got the operation, persist it
 			if (!cancelPendingOperation) {
