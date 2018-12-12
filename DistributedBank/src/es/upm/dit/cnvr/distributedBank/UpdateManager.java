@@ -175,7 +175,8 @@ public class UpdateManager {
 	private synchronized void operationsZnodeChanged() {
 		if (!bankcore.updating) {
 			bankcore.updating = true;
-			logger.info("BankCore updating TRUE!!!!");
+			String currentLeader = ClusterManager.leaderStr;
+			//logger.info("BankCore updating TRUE!!!!");
 			Operation operation = null;
 			// Connect to ZooKeeper and get the operation
 			try {
@@ -189,6 +190,17 @@ public class UpdateManager {
 				logger.error("Error getting operation from zookeeper:");
 				logger.error(e.toString());
 			}
+
+			//logger.debug("Point 0");
+
+			// Sleep for debugging - test case 2 and 3
+			logger.debug("I am sleeping, KILL ME");
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 			
 			// Delete my lock
 			try {
@@ -201,6 +213,26 @@ public class UpdateManager {
 			}
 			List<String> locks = this.getLocks();
 			while (!locks.isEmpty()) {
+				// If the leader process fails, abort
+				try {
+					if (zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_MEMBERS_ROOT + "/" + currentLeader, false) == null) {
+						return;
+					}
+				} catch (KeeperException e) {
+					logger.error(String.format("Error trying to know if the leader znode still exists while updating. Error: %s", e));
+				} catch (InterruptedException e) {
+					logger.error(String.format("Error trying to know if the leader znode still exists while updating. Error: %s", e));
+				}
+				//synchronized (lock) {
+				/*
+					try {
+						logger.debug("Waiting for the following locks to be removed: "+locks.toString());
+						//lock.wait(5000);
+						logger.debug("Nofify received. Proceeding");
+					} catch (InterruptedException e) {
+						logger.error("Interrupted Exception in wait");
+					}
+					*/
 					locks = this.getLocks();
 			}
 			
@@ -291,7 +323,7 @@ public class UpdateManager {
 		List<String> locks = null;
 		try {
 			locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, locksWatcher);
-			logger.debug("Current locks are: "+locks.toString());
+//			logger.debug("Current locks are: "+locks.toString());
 		} catch (Exception e) {
 			logger.error("Error in getLocks");
 			// Stop everything. Null could mean lack of locks and generate inconsistencies

@@ -43,6 +43,7 @@ public class ClusterManager {
 	private static String znodeIdState;
 	// Leader sequential znode number in the "members" tree
 	private static int leader;
+	public static String leaderStr;
 	private ZooKeeper zk;
 	// This variable stores the number of processes that have been tried to start
 	// but have not been confirmed yet.
@@ -248,6 +249,13 @@ public class ClusterManager {
 			
 			// Get current leader
 			leader = getLowestId(znodeListMembers);
+			// We also save it as a String, so that the followers know its znode in /members when starting an operation
+			leaderStr = znodeListMembersString.get(0);
+			for (String znode: znodeListMembersString) {
+				if(znode.compareTo(leaderStr) < 0) {
+					leaderStr = znode;
+				}
+			}
 			logger.debug(String.format("Znodelist is %s", znodeListMembers.toString()));
 			logger.debug(String.format("Leader should be %d, and I am %d", leader, znodeId));
 			if (znodeId == leader) {
@@ -354,6 +362,7 @@ public class ClusterManager {
 				znodeListMembers = updatedZnodeList;
 			} else {
 				znodeListMembers = updatedZnodeList;
+				logger.debug("Electing new leader");
 				leaderElection();
 				updateHandlePending = false;
 				if (znodeId == leader) {
@@ -582,6 +591,7 @@ public class ClusterManager {
 	// Notified when the number of children in the members branch is updated
 	private Watcher watcherMember = new Watcher() {
 		public void process(WatchedEvent event) {
+			logger.debug("Handle znodes update called");
 			try {
 				handleZnodesUpdate();
 			} catch (KeeperException e) {
