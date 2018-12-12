@@ -1,12 +1,10 @@
 package es.upm.dit.cnvr.distributedBank;
 
-import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import java.io.Console;
 import java.util.Scanner;
 
 
@@ -106,7 +104,6 @@ public class BankCore {
 					}
 					break;
 				case 3: // Update client
-					//Pasar al updateManager
 					if (ClusterManager.pendingProcessesToStart != 0) {
 						System.out.println("The system is being restored, 'update' operations are disabled for the moment. Please, wait");
 					}
@@ -168,7 +165,7 @@ public class BankCore {
         if (hostOS.contains("Mac")) {
         	os = 0;
         } else {
-        	//TODO would be nice to refine this to be sure that we are on Linux here
+        	//Note: Would be nice to refine this to be sure that we are on Linux here
         	os = 1;
         }
 		// Used when new processes need to be created

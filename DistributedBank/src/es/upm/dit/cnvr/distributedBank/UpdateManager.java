@@ -1,12 +1,6 @@
 package es.upm.dit.cnvr.distributedBank;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -191,13 +185,12 @@ public class UpdateManager {
 			}
 
 			// Sleep for debugging - test case 2 and 3
-			logger.debug("I am sleeping, KILL ME");
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
+//			logger.debug("I am sleeping, KILL ME");
+//			try {
+//				Thread.sleep(5000);
+//			} catch (InterruptedException e1) {
+//				logger.error(String.format("Interrupted while sleeping in operationsZnodeChanged. Exception: %s", e1));
+//			}
 			
 			// Delete my lock
 			try {
@@ -263,7 +256,6 @@ public class UpdateManager {
 				byte[] data = zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, operationsWatcher,
 						zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_OPERATIONS_ROOT, false));
 				logger.info("Contents of operation: "+data.toString());
-				//if (data.equals(new byte[0])) {
 				  if (Arrays.equals(data, new byte[0])) {
 					logger.info("Operation node was deleted and triggered a watcher. Undoing operation");
 					cancelPendingOperation = true;

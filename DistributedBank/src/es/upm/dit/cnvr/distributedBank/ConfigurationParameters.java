@@ -1,7 +1,6 @@
 package es.upm.dit.cnvr.distributedBank;
 
 public  class ConfigurationParameters {
-	
 	public static int  CLUSTER_GOAL_SIZE = 3;
 	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 3000; //millis
 	// This value is not taken into account, the cluster uses its own timeout
@@ -27,9 +26,4 @@ public  class ConfigurationParameters {
 	public static String SERVER_CREATION_PREFIX_LINUX = "gnome-terminal -x sh -c \"";
 	public static String SERVER_CREATION_SUFIX_LINUX = "\"";
 	public static String SERVER_CREATION = "";
-	
-
-	
-	
-
 }
