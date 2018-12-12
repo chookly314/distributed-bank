@@ -43,6 +43,7 @@ public class ClusterManager {
 	private static String znodeIdState;
 	// Leader sequential znode number in the "members" tree
 	private static int leader;
+	// Used by followers to store the current leader whan an operation starts
 	public static String leaderStr;
 	private ZooKeeper zk;
 	// This variable stores the number of processes that have been tried to start
@@ -528,8 +529,6 @@ public class ClusterManager {
 			// Start listening
 			boolean firstTime = true;
 			while (true) {
-				// TODO Consider making it non-blocking and create the socket before the znode
-				// https://www.developer.com/java/data/what-is-non-blocking-socket-programming-in-java.html
 				if (firstTime) {
 					// Create a znode in /state to notify the leader that the process is ready to
 					// synchronize and to notify the listening port

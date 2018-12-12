@@ -21,7 +21,6 @@ public class BankClientImpl implements BankClient, Serializable{
 
 	@Override
 	public void setAccount(int accNumber) {
-		// TODO Auto-generated method stub
 		this.accountNumber = accNumber;
 	}
 
@@ -32,19 +31,16 @@ public class BankClientImpl implements BankClient, Serializable{
 
 	@Override
 	public void setBalance(int balance) {
-		// TODO Auto-generated method stub
 		this.balance = balance;
 	}
 
 	@Override
 	public String getName() {
-		// TODO Auto-generated method stub
 		return this.name;
 	}
 
 	@Override
 	public void setName(String name) {
-		// TODO Auto-generated method stub
 		this.name=name;
 	}
 	

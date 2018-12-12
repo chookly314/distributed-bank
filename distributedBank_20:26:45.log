@@ -1,0 +1,21 @@
+2018-12-12 20:26:45 INFO  BankCore:183 - Host OS is macOS.
+2018-12-12 20:26:45 INFO  BankCore:189 - Working directory is /Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/
+2018-12-12 20:26:45 INFO  BankCore:190 - Server creation command will be: open -a Terminal /Volumes/Nano/Documentos/Nano/Universidad/Asignaturas/2018-2019/CNVR/Práctica-final/Parte-2/distributed-bank/start.sh
+2018-12-12 20:26:45 INFO  BankCore:39 - Created ZK session
+2018-12-12 20:26:45 INFO  BankCore:241 - ClusterManager Zookeeper session created: WatchedEvent state:SyncConnected type:None path:null.
+2018-12-12 20:26:45 INFO  ClusterManager:263 - I am the new leader!
+2018-12-12 20:26:45 INFO  BankCore:234 - Setting a leader
+2018-12-12 20:26:48 INFO  ClusterManager:331 - New process launched triggered.
+2018-12-12 20:26:49 INFO  ClusterManager:471 - Getting port from the process with /state znode /state/state-0000000294.
+2018-12-12 20:26:49 INFO  ClusterManager:477 - Port: 10892
+2018-12-12 20:26:49 INFO  ClusterManager:338 - IN handle znodes update, oldZnodeListString before is: [424]
+2018-12-12 20:26:49 INFO  ClusterManager:347 - IN handle znodes update, oldZnodeListString after is: [424]
+2018-12-12 20:26:49 INFO  ClusterManager:355 - oldZnodeListString is [424]
+2018-12-12 20:26:49 INFO  ClusterManager:356 - znodeListMembersString is [member-0000000424, member-0000000425]
+2018-12-12 20:26:51 INFO  ClusterManager:331 - New process launched triggered.
+2018-12-12 20:26:52 INFO  ClusterManager:471 - Getting port from the process with /state znode /state/state-0000000295.
+2018-12-12 20:26:52 INFO  ClusterManager:477 - Port: 10520
+2018-12-12 20:26:52 INFO  ClusterManager:338 - IN handle znodes update, oldZnodeListString before is: [424, 425]
+2018-12-12 20:26:52 INFO  ClusterManager:347 - IN handle znodes update, oldZnodeListString after is: [424, 425]
+2018-12-12 20:26:52 INFO  ClusterManager:355 - oldZnodeListString is [424, 425]
+2018-12-12 20:26:52 INFO  ClusterManager:356 - znodeListMembersString is [member-0000000424, member-0000000426, member-0000000425]
