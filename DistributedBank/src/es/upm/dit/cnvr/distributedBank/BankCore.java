@@ -6,7 +6,7 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-
+import java.io.Console;
 import java.util.Scanner;
 
 
@@ -17,9 +17,6 @@ import es.upm.dit.cnvr.distributedBank.persistence.*;
 
 public class BankCore {
 
-	//peticion de escritura si este es el lider se pasará el sistema a estado updating y se notificará la operación de escritura al updateManager 
-	// si no es el lider contesta diciendo que tiene que contactar con el lider.
-	
 	private static Logger logger = Logger.getLogger(BankCore.class);
 	private ZooKeeper zk;
 	private boolean leader;
@@ -56,6 +53,9 @@ public class BankCore {
 		ClusterManager clustermanager = null;
 		try {
 			clustermanager = new ClusterManager(zk, this);
+			while (ClusterManager.isInitializing) {
+					Thread.sleep(50);
+			}
 		} catch (Exception e) {
 			logger.error(String.format("Can't create Cluster Manager: %s", e.toString()));
 		}
@@ -79,8 +79,10 @@ public class BankCore {
 
 				switch (menuKey) {
 				case 1: // Create client
+					if (ClusterManager.pendingProcessesToStart != 0) {
+						System.out.println("The system is being restored, 'create' operations are disabled for the moment. Please, wait");
+					}
 					client = readClient(sc);
-					//Pasar a updateManager para crear este cliente.
 					if(client!=null) {
 					updatemanager.processOperation(new Operation(OperationEnum.CREATE, client));
 					logger.info("End of creation, breaking case.");
@@ -91,7 +93,6 @@ public class BankCore {
 					System. out .print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
-						//leer a partir del número de cuenta
 						client = clientDB.read(accNumber);
 						if (client != null) {
 							System.out.println(client.toString());
@@ -103,14 +104,12 @@ public class BankCore {
 						System.out.println("The text provided is not an integer");
 						sc.next();
 					}
-					/*else {
-						System.out.println("The system is busy, try it again later. Thanks.");
-						sc.next();
-					}*/
 					break;
 				case 3: // Update client
 					//Pasar al updateManager
-		
+					if (ClusterManager.pendingProcessesToStart != 0) {
+						System.out.println("The system is being restored, 'update' operations are disabled for the moment. Please, wait");
+					}
 					System.out.print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
@@ -128,6 +127,9 @@ public class BankCore {
 					updatemanager.processOperation(new Operation(OperationEnum.UPDATE, accNumber, balance));
 					break;
 				case 4: // Delete client
+					if (ClusterManager.pendingProcessesToStart != 0) {
+						System.out.println("The system is being restored, 'delete' operations are disabled for the moment. Please, wait");
+					}
 					System. out .print(">>> Enter account number (int) = ");
 					if (sc.hasNextInt()) {
 						accNumber = sc.nextInt();
@@ -166,7 +168,7 @@ public class BankCore {
         if (hostOS.contains("Mac")) {
         	os = 0;
         } else {
-        	//TODO refine this to be sure that we are on Linux here
+        	//TODO would be nice to refine this to be sure that we are on Linux here
         	os = 1;
         }
         BasicConfigurator.configure();

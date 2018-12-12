@@ -3,7 +3,7 @@ package es.upm.dit.cnvr.distributedBank;
 public  class ConfigurationParameters {
 	
 	public static int  CLUSTER_GOAL_SIZE = 3;
-	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 5000; //millis
+	public static int CLUSTER_WATCHDOG_SLEEP_CYCLE = 3000; //millis
 	// This value is not taken into account, the cluster uses its own timeout
 	public static int ZOOKEEPER_SESSION_TIMEOUT = 4000;
 	public static String ZOOKEEPER_TREE_SEPARATOR = "-";
@@ -21,8 +21,6 @@ public  class ConfigurationParameters {
 	public static String PROJECT_WORKING_DIRECTORY = "";
 	public static String PROJECT_START_SCRIPT = "start.sh";
 	// - macOS
-//	public static String SERVER_CREATION_PREFIX_MAC = "osascript -e 'tell app \"Terminal\" to do script \"";
-//	public static String SERVER_CREATION_SUFIX_MAC = "\"'";
 	public static String SERVER_CREATION_PREFIX_MAC = "open -a Terminal ";
 	public static String SERVER_CREATION_SUFIX_MAC = "";
 	// - Linux
@@ -33,5 +31,5 @@ public  class ConfigurationParameters {
 
 	
 	
-//	public static String APPLICATION_DIRECTORY = new File(ConfigurationParameters.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath();
+
 }
