@@ -149,6 +149,7 @@ public class UpdateManager {
 				if (Arrays.equals(currentOperationContent, new byte[0])) {
 					logger.debug("Operation is empty. Aborting persist.");
 					cancelPendingOperation = true;
+					System.out.println("Operation not applied. Please retry");
 				}
 			} catch (Exception e) {
 				logger.info("Error emptying operation znode");
