@@ -171,7 +171,6 @@ public class BankCore {
         	//TODO would be nice to refine this to be sure that we are on Linux here
         	os = 1;
         }
-        BasicConfigurator.configure();
 		// Used when new processes need to be created
 		if (args.length != 1) {
 			logger.error("You should pass your working directory as paramerer. Example: java -cp ... app.jar /home/user. Exiting...");

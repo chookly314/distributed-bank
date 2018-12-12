@@ -107,6 +107,12 @@ public class ClusterManager {
 					followerStartUp();
 				}
 			}
+			System.out.println("ProcessId: "+znodeId);
+			if (leader==znodeId) {
+				System.out.println("Leader node");
+			} else {
+				System.out.println("Non-leader node");
+			}
 		}
 	}
 
