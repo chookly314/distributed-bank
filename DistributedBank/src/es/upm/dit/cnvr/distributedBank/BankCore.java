@@ -142,7 +142,11 @@ public class BankCore {
 					}
 					break;
 				case 6:
-					exit = true;	
+					exit = true;
+					// Since the leader also has the watchdog thread, we need to kill the process instead
+					if (leader) {
+						System.exit(1);
+					}
 				default:
 					break;
 				}
