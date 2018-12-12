@@ -176,7 +176,6 @@ public class UpdateManager {
 		if (!bankcore.updating) {
 			bankcore.updating = true;
 			String currentLeader = ClusterManager.leaderStr;
-			//logger.info("BankCore updating TRUE!!!!");
 			Operation operation = null;
 			// Connect to ZooKeeper and get the operation
 			try {
@@ -190,8 +189,6 @@ public class UpdateManager {
 				logger.error("Error getting operation from zookeeper:");
 				logger.error(e.toString());
 			}
-
-			//logger.debug("Point 0");
 
 			// Sleep for debugging - test case 2 and 3
 			logger.debug("I am sleeping, KILL ME");
@@ -223,16 +220,6 @@ public class UpdateManager {
 				} catch (InterruptedException e) {
 					logger.error(String.format("Error trying to know if the leader znode still exists while updating. Error: %s", e));
 				}
-				//synchronized (lock) {
-				/*
-					try {
-						logger.debug("Waiting for the following locks to be removed: "+locks.toString());
-						//lock.wait(5000);
-						logger.debug("Nofify received. Proceeding");
-					} catch (InterruptedException e) {
-						logger.error("Interrupted Exception in wait");
-					}
-					*/
 					locks = this.getLocks();
 			}
 			
@@ -323,7 +310,6 @@ public class UpdateManager {
 		List<String> locks = null;
 		try {
 			locks = zk.getChildren(ConfigurationParameters.ZOOKEEPER_TREE_LOCKS_ROOT, locksWatcher);
-//			logger.debug("Current locks are: "+locks.toString());
 		} catch (Exception e) {
 			logger.error("Error in getLocks");
 			// Stop everything. Null could mean lack of locks and generate inconsistencies
