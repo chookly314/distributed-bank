@@ -5,6 +5,12 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.security.GeneralSecurityException;
+import java.util.Enumeration;
 import java.util.Scanner;
 
 
@@ -177,15 +183,27 @@ public class BankCore {
 			logger.error("You should pass your working directory as paramerer. Example: java -cp ... app.jar /home/user. Exiting...");
 			System.exit(1);
 		} else {
+			String ip = null;
 			if (os == 0) {
+				logger.info("Host OS is macOS.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
 				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_MAC + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + ConfigurationParameters.SERVER_CREATION_SUFIX_MAC;
-				logger.info("Host OS is macOS.");
+				ip = getIP(ConfigurationParameters.MACOS_NETWORK_INTERFACE_NAME); 
 			} if (os == 1) {
+				logger.info("Host OS is Linux.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
 				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX;
-				logger.info("Host OS is Linux.");
+				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME); 
 			}
+			if ( ip != null && ip.substring(0, 1).equals("/")) {
+				ip = ip.substring(1, ip.length());
+			}
+			ConfigurationParameters.HOST_IP_ADDRESS = ip;
+			if (ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME == null) {
+				logger.error("Host detected IP address is null. That means there was a problem while trying to find it. Exiting.");
+				System.exit(1);
+			}
+			logger.info(String.format("Your detected IP address is: %s", ConfigurationParameters.HOST_IP_ADDRESS));
 			logger.info(String.format("Working directory is %s", ConfigurationParameters.PROJECT_WORKING_DIRECTORY));
 			logger.info(String.format("Server creation command will be: %s", ConfigurationParameters.SERVER_CREATION));			
 		}
@@ -221,6 +239,27 @@ public class BankCore {
 		return new BankClientImpl(accNumber, name, balance);
 	}
 
+	private static String getIP(String interfaceName) {
+		NetworkInterface networkInterface;
+		try {
+			networkInterface = NetworkInterface.getByName(interfaceName);
+			Enumeration<InetAddress> inetAddress = networkInterface.getInetAddresses();
+			InetAddress currentAddress;
+			currentAddress = inetAddress.nextElement();
+			while(inetAddress.hasMoreElements())
+			{
+				currentAddress = inetAddress.nextElement();
+				if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress())
+				{
+					return currentAddress.toString();
+				}
+			}
+		} catch (SocketException e) {
+			logger.error(String.format("Error finding host IP. Error: %s", e));;
+		}
+		return null;
+	}
+	
 	public boolean isLeader() {
 		return this.leader;
 	}

@@ -19,11 +19,15 @@ public  class ConfigurationParameters {
 	public static String PROJECT_MAIN_PATH = "es.upm.dit.cnvr.distributedBank";
 	public static String PROJECT_WORKING_DIRECTORY = "";
 	public static String PROJECT_START_SCRIPT = "start.sh";
+	public static String HOST_IP_ADDRESS = "";
 	// - macOS
 	public static String SERVER_CREATION_PREFIX_MAC = "open -a Terminal ";
 	public static String SERVER_CREATION_SUFIX_MAC = "";
+	public static String MACOS_NETWORK_INTERFACE_NAME = "en0";
 	// - Linux
 	public static String SERVER_CREATION_PREFIX_LINUX = "gnome-terminal -x sh -c \"";
 	public static String SERVER_CREATION_SUFIX_LINUX = "\"";
 	public static String SERVER_CREATION = "";
+	public static String LINUX_NETWORK_INTERFACE_NAME = "eth0";
+	
 }

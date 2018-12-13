@@ -317,7 +317,7 @@ public class ClusterManager {
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
-			logger.debug(String.format("Executing command %s to create a new process.", command));
+			logger.info(String.format("Executing command %s to create a new process.", command));
 			p = Runtime.getRuntime().exec(command);
 			logger.debug("New terminal should pop up.");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -328,7 +328,7 @@ public class ClusterManager {
 		} catch (Exception e) {
 			logger.error(String.format("Could not create a new process. Error: %s", e));
 		}
-		logger.info("New process launched triggered.");
+		logger.info("New process launch triggered.");
 	}
 
 	private synchronized void handleZnodesUpdate() throws KeeperException, InterruptedException {
@@ -412,6 +412,7 @@ public class ClusterManager {
 		if (leader != znodeId) {
 			return;
 		}
+		logger.debug(String.format("Last contacted process is %s", lastContactedProcess));
 		if (lastContactedProcess.equals("")) {
 			if (znodeListState.size() != 0) {
 				lastContactedProcess = getLowestStateIdZnode(znodeListState);
@@ -467,23 +468,32 @@ public class ClusterManager {
 	private synchronized void synchronizeWithProcess(String zKStatePath) {
 		// Read the data from the znode to get the port
 		int port = -1;
+		String ipPort = null;
 		try {
 			logger.info(String.format("Getting port from the process with /state znode %s.",
 					ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath));
-			port = Integer.parseInt(new String(
+			ipPort = new String(
 					zk.getData(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath, false,
 							zk.exists(ConfigurationParameters.ZOOKEEPER_TREE_STATE_ROOT + "/" + zKStatePath, false)),
-					"UTF-8"));
-			logger.info(String.format("Port: %d", port));
+					"UTF-8");
+			logger.info(String.format("Ip and port from process %s are: %s", zKStatePath, ipPort));
 		} catch (NumberFormatException | UnsupportedEncodingException | KeeperException | InterruptedException e) {
-			logger.error(String.format("Could not get the port number. Error is: %s. Exiting...", e));
+			logger.error(String.format("Could not get the destination IP:port. Error is: %s. Exiting...", e));
 			System.exit(1);
 		}
-
+		// Get the IP content of the adress and the port one
+		if (ipPort == null) {
+			logger.error("Could not get the network address. Exiting...");
+			System.exit(1);
+		}
+		int separatorIndex = ipPort.indexOf(":");
+		String ip = ipPort.substring(0,separatorIndex);
+		port = Integer.valueOf(ipPort.substring(separatorIndex + 1, ipPort.length()));
+		logger.info("IP is " + ip + " and port number is " + port);
 		try {
 			// Send the state via sockets
 			if (port != -1) {
-				Socket socket = new Socket("localhost", port);
+				Socket socket = new Socket(ip, port);
 				logger.debug(String.format("Client (leader) should now be connected to the socket, on port %s", port));
 				ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
 				os.writeObject(DBConn.getDatabase());
@@ -521,7 +531,7 @@ public class ClusterManager {
 
 		try {
 			// Port to write in /state znode
-			byte[] portToSend = String.valueOf(port).getBytes("UTF-8");
+			byte[] portToSend = String.valueOf(ConfigurationParameters.HOST_IP_ADDRESS + ":" + port).getBytes("UTF-8");
 
 			// Create the socket
 			listener = new ServerSocket(port);
