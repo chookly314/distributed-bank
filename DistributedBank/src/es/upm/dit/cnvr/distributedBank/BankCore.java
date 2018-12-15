@@ -193,7 +193,7 @@ public class BankCore {
 				logger.info("Host OS is Linux.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
 				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX;
-				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME); 
+				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME);
 			}
 			if ( ip != null && ip.substring(0, 1).equals("/")) {
 				ip = ip.substring(1, ip.length());
@@ -255,7 +255,7 @@ public class BankCore {
 				}
 			}
 		} catch (SocketException e) {
-			logger.error(String.format("Error finding host IP. Error: %s", e));;
+			logger.error(String.format("Error finding host IP. Error: %s", e));
 		}
 		return null;
 	}

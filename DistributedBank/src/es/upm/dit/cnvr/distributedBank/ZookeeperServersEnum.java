@@ -7,9 +7,11 @@ import java.util.Random;
 public enum ZookeeperServersEnum {
 
 	// We will start 2 Zookeeper servers and balance the load between them
-	SERVER1("127.0.0.1:2181"), 
-	SERVER2("127.0.0.1:2182"),
-	SERVER3("127.0.0.1:2183");
+	SERVER1("zookeeper:2181");
+	//SERVER1("127.0.0.1:2181"),
+	//SERVER2("127.0.0.1:2182"),
+	//SERVER3("127.0.0.1:2183");
+	
 	
 	private static final List<String> VALUES;
 

@@ -1,0 +1,18 @@
+#Lanzar la app desde el contenedor
+java -cp /app/distributedBank.jar -DlogFile=distributedBank_$(date +%H:%M:%S).log es.upm.dit.cnvr.distributedBank.BankCore /app
+
+# Crear la red overlay
+docker swarm init
+docker swarm join (con el token...)
+sudo docker network create -d overlay --attachable my-attachable-overlay
+
+#Levantar un nodo de zookeeper en la red overlay
+sudo docker run -d --network my-attachable-overlay --name zookeeper zookeeper:3.4.13
+
+# Hacer un build local del Dockerfile
+docker build -t "distributed-bank" .
+
+# Ejecutar la app
+sudo docker run -it --network my-attachable-overlay -v /var/run/docker.sock:/var/run/docker.sock distributed-bank
+
+

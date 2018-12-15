@@ -317,14 +317,19 @@ public class ClusterManager {
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
+			
+			command = "/usr/bin/docker run -it --network my-attachable-overlay -v /var/run/docker.sock:/var/run/docker.sock distributed-bank /bin/bash -c '/bin/sleep infinity | java -cp /app/distributedBank.jar -DlogFile=distributedBank_$(date +%H:%M:%S).log es.upm.dit.cnvr.distributedBank.BankCore /app'";
+			
 			logger.info(String.format("Executing command %s to create a new process.", command));
 			p = Runtime.getRuntime().exec(command);
+			/*
 			logger.debug("New terminal should pop up.");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String line = "";
 			while ((line = reader.readLine()) != null) {
 				output.append(line + "\n");
 			}
+			*/
 		} catch (Exception e) {
 			logger.error(String.format("Could not create a new process. Error: %s", e));
 		}
