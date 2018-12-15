@@ -28,6 +28,6 @@ public  class ConfigurationParameters {
 	public static String SERVER_CREATION_PREFIX_LINUX = "gnome-terminal -x sh -c \"";
 	public static String SERVER_CREATION_SUFIX_LINUX = "\"";
 	public static String SERVER_CREATION = "";
-	public static String LINUX_NETWORK_INTERFACE_NAME = "eth0";
+	public static String LINUX_NETWORK_INTERFACE_NAME = "wlp5s0";
 	
 }
