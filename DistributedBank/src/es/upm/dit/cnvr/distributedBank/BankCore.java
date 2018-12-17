@@ -182,26 +182,23 @@ public class BankCore {
 		} else {
 			
 			zookeeperIpAddress = args[1];
-
 			
 			String ip = null;
 			if (os == 0) {
 				logger.info("Host OS is macOS.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
-				//ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_MAC + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_MAC;
-				ConfigurationParameters.SERVER_CREATION_MAC[3] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
+				ConfigurationParameters.SERVER_CREATION_MAC[3] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY 
+						+ ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
 				logger.info(String.format("Server creation command will be: %s", Arrays.toString(ConfigurationParameters.SERVER_CREATION_MAC)));			
 				ip = getIP(ConfigurationParameters.MACOS_NETWORK_INTERFACE_NAME); 
 			} if (os == 1) {
 				logger.info("Host OS is Linux.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
-				//ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX ;
-				ConfigurationParameters.SERVER_CREATION_LINUX[4] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
+				ConfigurationParameters.SERVER_CREATION_LINUX[4] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY 
+						+ ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
 				logger.info(String.format("Server creation command will be: %s", Arrays.toString(ConfigurationParameters.SERVER_CREATION_LINUX)));			
 				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME); 
 			}
-			
-			
 			
 			if ( ip != null && ip.substring(0, 1).equals("/")) {
 				ip = ip.substring(1, ip.length());

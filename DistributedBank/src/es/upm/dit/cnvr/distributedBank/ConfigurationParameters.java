@@ -21,16 +21,10 @@ public  class ConfigurationParameters {
 	public static String PROJECT_START_SCRIPT = "start.sh";
 	public static String HOST_IP_ADDRESS = "";
 	// - macOS
-	//public static String SERVER_CREATION_PREFIX_MAC = "open -a Terminal ";
-	//public static String SERVER_CREATION_SUFIX_MAC = "";
 	public static String[] SERVER_CREATION_MAC = new String[] {"open","-a","Terminal", ""};
 	public static String MACOS_NETWORK_INTERFACE_NAME = "en0";
 	// - Linux
-	//public static String SERVER_CREATION_PREFIX_LINUX = "gnome-terminal -x sh -c \"";
-	//public static String SERVER_CREATION_SUFIX_LINUX = "\"";
 	public static String[] SERVER_CREATION_LINUX = new String[] {"gnome-terminal","-x","sh", "-c", ""};
-	//public static String SERVER_CREATION_SUFIX_LINUX = "'";
-	//public static String[] SERVER_CREATION = new String[5];
 	public static String LINUX_NETWORK_INTERFACE_NAME = "wlp5s0";
 	
 }

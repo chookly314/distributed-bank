@@ -6,7 +6,7 @@ import java.util.Random;
 
 public enum ZookeeperServersEnum {
 
-	// We will start 2 Zookeeper servers and balance the load between them
+	// We will emulate a production system by connecting to a random server of a three-node cluster
 	SERVER1(BankCore.zookeeperIpAddress+":2181"), 
 	SERVER2(BankCore.zookeeperIpAddress+":2182"), 
 	SERVER3(BankCore.zookeeperIpAddress+":2183"); 
