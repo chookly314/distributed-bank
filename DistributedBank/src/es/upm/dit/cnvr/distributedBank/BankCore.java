@@ -197,14 +197,18 @@ public class BankCore {
 				ConfigurationParameters.SERVER_CREATION_LINUX[4] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY 
 						+ ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
 				logger.info(String.format("Server creation command will be: %s", Arrays.toString(ConfigurationParameters.SERVER_CREATION_LINUX)));			
-				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME); 
+				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME_1);
+				logger.info("IP not me is " + ip);
+				if (ip==null) {
+					ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME_2);					
+				}
 			}
 			
 			if ( ip != null && ip.substring(0, 1).equals("/")) {
 				ip = ip.substring(1, ip.length());
 			}
 			ConfigurationParameters.HOST_IP_ADDRESS = ip;
-			if (ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME == null) {
+			if (ConfigurationParameters.HOST_IP_ADDRESS == null) {
 				logger.error("Host detected IP address is null. That means there was a problem while trying to find it. Exiting.");
 				System.exit(1);
 			}
@@ -259,6 +263,7 @@ public class BankCore {
 	}
 
 	private static String getIP(String interfaceName) {
+		logger.info("Getting IP");
 		NetworkInterface networkInterface;
 		try {
 			networkInterface = NetworkInterface.getByName(interfaceName);
@@ -270,12 +275,16 @@ public class BankCore {
 				currentAddress = inetAddress.nextElement();
 				if(currentAddress instanceof Inet4Address && !currentAddress.isLoopbackAddress())
 				{
+					logger.info("IP returned is " + currentAddress.toString());
 					return currentAddress.toString();
 				}
 			}
 		} catch (SocketException e) {
-			logger.error(String.format("Error finding host IP. Error: %s", e));;
+			logger.error(String.format("Error finding host IP. Error: %s", e));
+		} catch (NullPointerException e) {
+			logger.error(String.format("Error getting host IP, probably because the network interface wasn't found. Error: %s", e));
 		}
+		logger.info("IP returned is " + null);
 		return null;
 	}
 	

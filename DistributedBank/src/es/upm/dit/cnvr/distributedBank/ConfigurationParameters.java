@@ -25,6 +25,7 @@ public  class ConfigurationParameters {
 	public static String MACOS_NETWORK_INTERFACE_NAME = "en0";
 	// - Linux
 	public static String[] SERVER_CREATION_LINUX = new String[] {"gnome-terminal","-x","sh", "-c", ""};
-	public static String LINUX_NETWORK_INTERFACE_NAME = "wlp5s0";
+	public static String LINUX_NETWORK_INTERFACE_NAME_1 = "wlp5s0";
+	public static String LINUX_NETWORK_INTERFACE_NAME_2 = "enp0s3";
 	
 }
