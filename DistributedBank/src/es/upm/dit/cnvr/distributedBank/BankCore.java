@@ -10,6 +10,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Scanner;
 
@@ -170,17 +171,9 @@ public class BankCore {
 	}
 	
 	public static void main(String[] args) {	
-        String hostOS = System.getProperty("os.name");
-        // Guess the OS
-        // + 0: macOS
-        // +1: Linux
-        int os = -1;
-        if (hostOS.contains("Mac")) {
-        	os = 0;
-        } else {
-        	//Note: Would be nice to refine this to be sure that we are on Linux here
-        	os = 1;
-        }
+       
+		int os = getOs();
+		
 		// Used when new processes need to be created
 		if (args.length != 2) {
 			logger.error("You should pass your working directory as paramerer. Example: java -cp ... app.jar /home/user. Exiting...");
@@ -195,16 +188,21 @@ public class BankCore {
 			if (os == 0) {
 				logger.info("Host OS is macOS.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
-				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_MAC + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT
-						 + " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_MAC;
+				//ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_MAC + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_MAC;
+				ConfigurationParameters.SERVER_CREATION_MAC[3] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
+				logger.info(String.format("Server creation command will be: %s", Arrays.toString(ConfigurationParameters.SERVER_CREATION_MAC)));			
 				ip = getIP(ConfigurationParameters.MACOS_NETWORK_INTERFACE_NAME); 
 			} if (os == 1) {
 				logger.info("Host OS is Linux.");
 				ConfigurationParameters.PROJECT_WORKING_DIRECTORY = args[0] + "/";
-				ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT 
-						+ " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX ;
+				//ConfigurationParameters.SERVER_CREATION = ConfigurationParameters.SERVER_CREATION_PREFIX_LINUX + ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress + ConfigurationParameters.SERVER_CREATION_SUFIX_LINUX ;
+				ConfigurationParameters.SERVER_CREATION_LINUX[4] = ConfigurationParameters.PROJECT_WORKING_DIRECTORY + ConfigurationParameters.PROJECT_START_SCRIPT + " " + zookeeperIpAddress;
+				logger.info(String.format("Server creation command will be: %s", Arrays.toString(ConfigurationParameters.SERVER_CREATION_LINUX)));			
 				ip = getIP(ConfigurationParameters.LINUX_NETWORK_INTERFACE_NAME); 
 			}
+			
+			
+			
 			if ( ip != null && ip.substring(0, 1).equals("/")) {
 				ip = ip.substring(1, ip.length());
 			}
@@ -215,10 +213,23 @@ public class BankCore {
 			}
 			logger.info(String.format("Your detected IP address is: %s", ConfigurationParameters.HOST_IP_ADDRESS));
 			logger.info(String.format("Working directory is %s", ConfigurationParameters.PROJECT_WORKING_DIRECTORY));
-			logger.info(String.format("Server creation command will be: %s", ConfigurationParameters.SERVER_CREATION));			
 			
 		}
 		BankCore bankcore = new BankCore();
+	}
+	
+	public static int getOs() {
+		 String hostOS = System.getProperty("os.name");
+	        // Guess the OS
+	        // + 0: macOS
+	        // +1: Linux
+	        int os = -1;
+	        if (hostOS.contains("Mac")) {
+	        	return 0;
+	        } else {
+	        	//Note: Would be nice to refine this to be sure that we are on Linux here
+	        	return 1;
+	        }
 	}
 	
 	
