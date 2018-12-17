@@ -9,6 +9,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -313,13 +314,23 @@ public class ClusterManager {
 	}
 
 	private synchronized void setUpNewServer() {
-		String command = ConfigurationParameters.SERVER_CREATION;
+			String[] command;
+		if (BankCore.getOs() == 0) {
+			command = ConfigurationParameters.SERVER_CREATION_MAC;
+		} else {
+			command = ConfigurationParameters.SERVER_CREATION_LINUX;
+		}
 		StringBuffer output = new StringBuffer();
 		Process p;
 		try {
-			logger.info(String.format("Executing command %s to create a new process.", command));
-			p = Runtime.getRuntime().exec(command);
+			logger.info(String.format("Executing command %s to create a new process.", Arrays.toString(command)));
+			//p = Runtime.getRuntime().exec(command);
+			
+			ProcessBuilder pb = new ProcessBuilder(command);
+			p = pb.start();
+			
 			logger.debug("New terminal should pop up.");
+			logger.debug("Process exit value is "+p.exitValue());
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String line = "";
 			while ((line = reader.readLine()) != null) {
